@@ -24,6 +24,7 @@ class SalaryExpectation:
 
 @dataclass(frozen=True)
 class CandidatePreferences:
+    remote_only: bool
     remote_preferred: bool
     accept_russia: bool
     accept_moscow_hybrid: bool
@@ -66,6 +67,7 @@ class AppSettings:
     hh_user_agent: str
     hh_api_token: str | None
     openai_api_key: str | None
+    openai_report_model: str
 
 
 def load_dotenv(env_path: str | Path = ".env") -> dict[str, str]:
@@ -103,6 +105,7 @@ def load_settings(env_path: str | Path = ".env") -> AppSettings:
         or "hh-positions-validation/0.1 (+local-cli)",
         hh_api_token=_env_get("HH_API_TOKEN", None, env_file),
         openai_api_key=_env_get("OPENAI_API_KEY", None, env_file),
+        openai_report_model=_env_get("OPENAI_REPORT_MODEL", "gpt-5", env_file) or "gpt-5",
     )
 
 
@@ -125,6 +128,7 @@ def load_profile(config_path: str | Path = "config/profile.toml") -> CandidatePr
         preferred_language=candidate.get("preferred_language", "ru"),
         applicant_history_url=_optional_str(hh.get("applicant_history_url")) if isinstance(hh, dict) else None,
         preferences=CandidatePreferences(
+            remote_only=bool(preferences.get("remote_only", preferences.get("remote_preferred", False))),
             remote_preferred=bool(preferences["remote_preferred"]),
             accept_russia=bool(preferences["accept_russia"]),
             accept_moscow_hybrid=bool(preferences["accept_moscow_hybrid"]),

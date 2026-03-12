@@ -17,8 +17,9 @@ def build_cover_letter_ru(profile: CandidateProfile, vacancy: Vacancy, analysis:
 
     if analysis.track == VacancyTrack.AI:
         transition = (
-            "Сейчас я целенаправленно двигаюсь в AI-track через роли, где особенно важны "
-            "LLM-интеграции, RAG, automation, vector storage и надежный backend вокруг этих сценариев."
+            "Сейчас я целенаправленно ищу первую коммерческую роль в AI-track через позиции, где особенно важны "
+            "LLM-интеграции, RAG, automation, vector storage и надежный backend вокруг этих сценариев. "
+            "Для меня это осознанный следующий шаг на базе сильного backend-опыта, а не случайный поворот."
         )
     elif analysis.track == VacancyTrack.RUBY:
         transition = (

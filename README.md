@@ -82,6 +82,53 @@ PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db mark --vaca
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db history
 ```
 
+## End-to-End Workflow
+
+Run the application in this order when you want fresh data and a new report:
+
+1. Initialize the database once:
+
+```bash
+PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db init-db
+```
+
+2. Inspect the profile-driven hh.ru public API searches:
+
+```bash
+PYTHONPATH=src python3 -m hh_monitor.cli list-searches
+```
+
+3. Pull fresh vacancies from hh.ru public API using the configured profile searches:
+
+```bash
+PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db fetch-hh-profile
+```
+
+4. Refresh your already-applied vacancies from hh.ru UI so they are excluded from ranking:
+
+```bash
+PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db export-my-applications \
+  --output data/hh_applied_history.html \
+  --storage-state data/hh_storage_state.json \
+  --login-wait-seconds 0 \
+  --import-status applied
+```
+
+5. Generate the final OpenAI report from the local DB, your profile config, and your CV PDF:
+
+```bash
+PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db report \
+  --cv-path data/Alexander_Kharitonov_CV_ENG_2026.pdf \
+  --output data/application_report.md
+```
+
+Notes about this flow:
+
+- `fetch-hh-profile` pulls vacancies from hh.ru public API using the search groups in `config/profile.toml`
+- `export-my-applications` updates local application history from the hh.ru UI and excludes those vacancies from later ranking
+- `report` does not pull fresh hh.ru data itself; it works from the local SQLite DB and sends prepared evidence to OpenAI
+- the report now uses only remote vacancies and only AI/Ruby-track vacancies before sending them to OpenAI
+
 For package imports without installation:
 
 ```bash
@@ -170,10 +217,11 @@ Notes:
 
 ## Application Report
 
-Generate a markdown report ordered by the current AI-first ranking:
+Generate a markdown report via OpenAI after the deterministic pipeline prepares ranked evidence:
 
 ```bash
 PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db report \
+  --cv-path data/Alexander_Kharitonov_CV_ENG_2026.pdf \
   --output data/application_report.md \
   --top-apply 20 \
   --top-maybe 20 \
@@ -182,10 +230,21 @@ PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db report \
 
 The report includes:
 
+- OpenAI analysis over all prepared remote-only vacancies
+- your CV text extracted from the provided PDF
+- full vacancy descriptions and requirements pushed into the OpenAI prompt
 - apply-now vacancies in priority order
 - manual-review vacancies that may still be worth checking
 - skipped vacancies as a low-attention log
-- salary expectations, risks, and cover-letter outlines per vacancy
+- vacancy links, not just ids
+- salary expectations, risks, and cover-letter drafts for apply/maybe vacancies
+
+Requirements:
+
+- `OPENAI_API_KEY` must be set
+- `OPENAI_REPORT_MODEL` controls which model is used and defaults to `gpt-5`
+- deterministic score/label are sent as advisory evidence, but the final report text and prioritization come from OpenAI
+- the report is built from remote-only vacancies and only `ai` / `ruby` tracks
 
 ## Draft Cover Letters
 

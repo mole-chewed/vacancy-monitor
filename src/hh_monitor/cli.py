@@ -7,8 +7,13 @@ import sys
 
 from hh_monitor.config import load_profile, load_settings
 from hh_monitor.cover_letters import build_cover_letter_filename, build_cover_letter_ru
-from hh_monitor.models import ApplicationRecord, ApplicationStatus, MatchLabel, RankedVacancy
-from hh_monitor.reporting import build_application_report_markdown
+from hh_monitor.cv import CvExtractionError, extract_cv_text
+from hh_monitor.models import ApplicationRecord, ApplicationStatus, MatchLabel, RankedVacancy, VacancyTrack, WorkFormat
+from hh_monitor.openai_reporting import (
+    OpenAIReportGenerationError,
+    OpenAIReportingUnavailableError,
+    generate_openai_application_report,
+)
 from hh_monitor.scoring import analyze_vacancy
 from hh_monitor.sources.json_import import load_vacancies_from_json
 from hh_monitor.storage import Storage
@@ -147,6 +152,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     report = subparsers.add_parser("report", help="Generate a markdown application report from ranked vacancies")
     report.add_argument("--output", default="data/application_report.md", help="Markdown report output path")
+    report.add_argument(
+        "--cv-path",
+        default="data/Alexander_Kharitonov_CV_ENG_2026.pdf",
+        help="Path to the candidate CV PDF that will be sent to OpenAI together with vacancy evidence",
+    )
     report.add_argument("--top-apply", type=int, default=25, help="How many apply-now vacancies to include")
     report.add_argument("--top-maybe", type=int, default=25, help="How many manual-review vacancies to include")
     report.add_argument("--top-skip", type=int, default=10, help="How many skip vacancies to include")
@@ -314,14 +324,20 @@ def _ranked_vacancies(storage: Storage, config_path: str, excluded: set[Applicat
     profile = load_profile(config_path)
     statuses = storage.get_application_statuses()
     vacancies = storage.list_vacancies(exclude_statuses=excluded)
-    ranked = [
-        RankedVacancy(
-            vacancy=vacancy,
-            analysis=analyze_vacancy(vacancy, profile),
-            application_status=statuses.get(vacancy.external_id, ApplicationStatus.NEW),
+    if profile.preferences.remote_only:
+        vacancies = [vacancy for vacancy in vacancies if vacancy.work_format == WorkFormat.REMOTE]
+    ranked: list[RankedVacancy] = []
+    for vacancy in vacancies:
+        analysis = analyze_vacancy(vacancy, profile)
+        if analysis.track not in {VacancyTrack.AI, VacancyTrack.RUBY}:
+            continue
+        ranked.append(
+            RankedVacancy(
+                vacancy=vacancy,
+                analysis=analysis,
+                application_status=statuses.get(vacancy.external_id, ApplicationStatus.NEW),
+            )
         )
-        for vacancy in vacancies
-    ]
     ranked.sort(
         key=lambda item: (
             item.analysis.priority_bucket,
@@ -463,7 +479,10 @@ def export_my_applications_command(args: argparse.Namespace) -> int:
 
 
 def report_command(args: argparse.Namespace) -> int:
-    storage = resolve_storage(args)
+    settings = load_settings(args.env_file)
+    configure_logging(settings.log_level)
+    storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
+    storage.init_db()
     ranked = _ranked_vacancies(storage, args.config, _parse_statuses(args.exclude_statuses))
     if ranked:
         storage.save_ranking_results(ranked)
@@ -471,18 +490,32 @@ def report_command(args: argparse.Namespace) -> int:
     profile = load_profile(args.config)
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    report_text = build_application_report_markdown(
-        profile,
-        ranked,
-        top_apply=args.top_apply,
-        top_maybe=args.top_maybe,
-        top_skip=args.top_skip,
-    )
+    try:
+        cv_text = extract_cv_text(args.cv_path)
+    except CvExtractionError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    try:
+        report_text = generate_openai_application_report(
+            api_key=settings.openai_api_key,
+            model=settings.openai_report_model,
+            profile=profile,
+            cv_text=cv_text,
+            ranked=ranked,
+            top_apply=args.top_apply,
+            top_maybe=args.top_maybe,
+            top_skip=args.top_skip,
+        )
+    except (OpenAIReportingUnavailableError, OpenAIReportGenerationError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
     output_path.write_text(report_text, encoding="utf-8")
-    print(f"Saved report to {output_path}")
-    print(f"Apply now: {sum(1 for item in ranked if item.analysis.action.value == 'apply')}")
-    print(f"Manual review: {sum(1 for item in ranked if item.analysis.action.value == 'maybe')}")
-    print(f"Skip: {sum(1 for item in ranked if item.analysis.action.value == 'skip')}")
+    print(f"Saved OpenAI report to {output_path}")
+    print(f"Vacancies analyzed: {len(ranked)}")
+    print(f"Remote-only filter: {profile.preferences.remote_only}")
+    print(f"Model: {settings.openai_report_model}")
     return 0
 
 

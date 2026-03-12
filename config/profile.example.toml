@@ -4,6 +4,7 @@ summary = "13+ years backend engineering, strong Ruby on Rails, PostgreSQL, Redi
 preferred_language = "ru"
 
 [preferences]
+remote_only = true
 remote_preferred = true
 accept_russia = true
 accept_moscow_hybrid = true

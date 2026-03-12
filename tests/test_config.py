@@ -23,6 +23,7 @@ class ConfigTestCase(unittest.TestCase):
         profile = load_profile("config/profile.example.toml")
 
         self.assertEqual(profile.applicant_history_url, "https://simferopol.hh.ru/applicant/negotiations")
+        self.assertTrue(profile.preferences.remote_only)
 
 
 if __name__ == "__main__":
