@@ -57,10 +57,14 @@ def detect_work_format(*values: str) -> WorkFormat:
 
 def vacancy_from_payload(payload: dict[str, Any], source: str = "json_import") -> Vacancy:
     title = normalize_text(payload.get("name"))
-    description = normalize_text(payload.get("description"))
     snippet = payload.get("snippet") or {}
+    snippet_requirement = normalize_text(snippet.get("requirement"))
+    snippet_responsibility = normalize_text(snippet.get("responsibility"))
+    description = normalize_text(payload.get("description")) or " ".join(
+        part for part in [snippet_responsibility, snippet_requirement] if part
+    ).strip()
     requirements = normalize_text(payload.get("requirements") or snippet.get("requirement"))
-    responsibility = normalize_text(snippet.get("responsibility"))
+    responsibility = snippet_responsibility
     company = normalize_text((payload.get("employer") or {}).get("name"))
     location = normalize_text((payload.get("area") or {}).get("name"))
     schedule = normalize_text((payload.get("schedule") or {}).get("name"))

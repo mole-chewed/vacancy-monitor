@@ -16,8 +16,10 @@ class ConfigTestCase(unittest.TestCase):
 
         self.assertEqual([query.name for query in profile.search_queries], ["ai_primary", "ai_transition", "ruby_primary"])
         self.assertEqual(profile.search_queries[0].priority, 10)
-        self.assertTrue(profile.search_queries[0].detailed)
-        self.assertEqual(profile.search_queries[0].area, 113)
+        self.assertFalse(profile.search_queries[0].detailed)
+        self.assertIsNone(profile.search_queries[0].area)
+        self.assertTrue(profile.search_queries[0].fetch_all)
+        self.assertEqual(profile.search_queries[0].per_page, 100)
 
     def test_profile_includes_applicant_history_url(self) -> None:
         profile = load_profile("config/profile.example.toml")

@@ -47,18 +47,19 @@ class HeadHunterClient:
 
     def search_vacancies_by_query(self, query: SearchQuery) -> list[Vacancy]:
         vacancies: list[Vacancy] = []
-        for page in range(query.pages):
+        page = 0
+        while True:
             params = query.to_params()
             params["page"] = page
-            payload = self._get_json("/vacancies", params=params)
-            items = payload.get("items")
+            page_payload = self._get_json("/vacancies", params=params)
+            items = page_payload.get("items")
             if not isinstance(items, list):
                 raise HeadHunterApiError("hh.ru vacancies response is missing list payload")
             for item in items:
-                payload = item
+                vacancy_payload = item
                 if query.detailed and item.get("id"):
                     try:
-                        payload = self.get_vacancy(str(item["id"]))
+                        vacancy_payload = self.get_vacancy(str(item["id"]))
                     except HeadHunterApiError as exc:
                         LOGGER.warning(
                             "Failed to fetch detailed vacancy %s for query %s, falling back to search item: %s",
@@ -66,8 +67,18 @@ class HeadHunterClient:
                             query.name,
                             exc,
                         )
-                vacancies.append(vacancy_from_payload(payload, source=f"hh_api:{query.name}"))
+                vacancies.append(vacancy_from_payload(vacancy_payload, source=f"hh_api:{query.name}"))
             LOGGER.info("Fetched %s vacancies from hh.ru page %s for query %s", len(items), page, query.name)
+            total_pages = page_payload.get("pages")
+            if not items:
+                break
+            if query.fetch_all:
+                if isinstance(total_pages, int) and page + 1 >= total_pages:
+                    break
+            else:
+                if page + 1 >= query.pages:
+                    break
+            page += 1
         return vacancies
 
     def get_vacancy(self, vacancy_id: str) -> dict[str, Any]:

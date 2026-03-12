@@ -157,6 +157,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="data/Alexander_Kharitonov_CV_ENG_2026.pdf",
         help="Path to the candidate CV PDF that will be sent to OpenAI together with vacancy evidence",
     )
+    report.add_argument(
+        "--hydrate-top",
+        type=int,
+        default=80,
+        help="Fetch hh.ru vacancy details for the top N shortlisted vacancies before sending evidence to OpenAI",
+    )
     report.add_argument("--top-apply", type=int, default=25, help="How many apply-now vacancies to include")
     report.add_argument("--top-maybe", type=int, default=25, help="How many manual-review vacancies to include")
     report.add_argument("--top-skip", type=int, default=10, help="How many skip vacancies to include")
@@ -266,6 +272,7 @@ def list_searches_command(args: argparse.Namespace) -> int:
             extras.append(f"employment={query.employment}")
         if query.experience:
             extras.append(f"experience={query.experience}")
+        extras.append(f"fetch_all={query.fetch_all}")
         extras.append(f"detailed={query.detailed}")
         extras.append(f"only_with_salary={query.only_with_salary}")
         print(f"    options={', '.join(extras)}")
@@ -286,10 +293,13 @@ def fetch_hh_profile_command(args: argparse.Namespace) -> int:
     if args.dry_run:
         for query in queries:
             print(f"{query.name} ({query.label}):")
-            for page in range(query.pages):
+            preview_pages = query.pages if not query.fetch_all else 3
+            for page in range(preview_pages):
                 params = query.to_params()
                 params["page"] = page
                 print(f"    {params}")
+            if query.fetch_all:
+                print("    ... fetch_all=true, will continue until hh.ru pages are exhausted")
         return 0
 
     storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
@@ -347,6 +357,54 @@ def _ranked_vacancies(storage: Storage, config_path: str, excluded: set[Applicat
         )
     )
     return ranked
+
+
+def _hydrate_ranked_vacancies(
+    storage: Storage,
+    *,
+    config_path: str,
+    excluded: set[ApplicationStatus],
+    settings,
+    limit: int,
+    client=None,
+) -> list[RankedVacancy]:
+    if limit <= 0:
+        return _ranked_vacancies(storage, config_path, excluded)
+
+    ranked = _ranked_vacancies(storage, config_path, excluded)
+    if not ranked:
+        return ranked
+
+    if client is None:
+        from hh_monitor.sources.hh_api import HeadHunterClient
+
+        client = HeadHunterClient(
+            base_url=settings.hh_api_base_url,
+            user_agent=settings.hh_user_agent,
+            api_token=settings.hh_api_token,
+        )
+
+    from hh_monitor.normalization import vacancy_from_payload
+    from hh_monitor.sources.hh_api import HeadHunterApiError
+
+    selected = ranked[:limit]
+    refreshed = []
+    for item in selected:
+        vacancy_id = item.vacancy.external_id
+        if not vacancy_id.isdigit():
+            continue
+        try:
+            payload = client.get_vacancy(vacancy_id)
+        except HeadHunterApiError as exc:
+            LOGGER.warning("Failed to hydrate vacancy %s: %s", vacancy_id, exc)
+            continue
+        refreshed.append(vacancy_from_payload(payload, source=item.vacancy.source))
+
+    if refreshed:
+        storage.upsert_vacancies(refreshed)
+        LOGGER.info("Hydrated %s shortlisted vacancies via hh.ru detail endpoint", len(refreshed))
+
+    return _ranked_vacancies(storage, config_path, excluded)
 
 
 def _label_ru(label: MatchLabel) -> str:
@@ -483,7 +541,14 @@ def report_command(args: argparse.Namespace) -> int:
     configure_logging(settings.log_level)
     storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
     storage.init_db()
-    ranked = _ranked_vacancies(storage, args.config, _parse_statuses(args.exclude_statuses))
+    excluded = _parse_statuses(args.exclude_statuses)
+    ranked = _hydrate_ranked_vacancies(
+        storage,
+        config_path=args.config,
+        excluded=excluded,
+        settings=settings,
+        limit=args.hydrate_top,
+    )
     if ranked:
         storage.save_ranking_results(ranked)
 

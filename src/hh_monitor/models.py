@@ -174,6 +174,7 @@ class SearchQuery:
     area: int | None = None
     per_page: int = 20
     pages: int = 1
+    fetch_all: bool = False
     only_with_salary: bool = False
     detailed: bool = False
     search_field: str | None = None

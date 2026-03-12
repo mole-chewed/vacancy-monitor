@@ -226,6 +226,7 @@ def _load_search_queries(raw_search: object) -> list[SearchQuery]:
                 area=_optional_int(payload.get("area")),
                 per_page=int(payload.get("per_page", 20)),
                 pages=int(payload.get("pages", 1)),
+                fetch_all=bool(payload.get("fetch_all", False)),
                 only_with_salary=bool(payload.get("only_with_salary", False)),
                 detailed=bool(payload.get("detailed", False)),
                 search_field=_optional_str(payload.get("search_field")),

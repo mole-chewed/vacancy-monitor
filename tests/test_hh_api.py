@@ -92,6 +92,72 @@ class HeadHunterClientTestCase(unittest.TestCase):
         self.assertEqual(session.calls[0]["params"]["order_by"], "publication_time")
         self.assertEqual(session.calls[0]["params"]["search_field"], "name")
 
+    def test_search_vacancies_by_query_can_fetch_all_pages(self) -> None:
+        session = FakeSession(
+            [
+                FakeResponse(
+                    {
+                        "items": [
+                            {
+                                "id": "101",
+                                "name": "AI Backend Engineer",
+                                "alternate_url": "https://hh.example/101",
+                                "employer": {"name": "AI Team"},
+                                "area": {"name": "Remote"},
+                                "schedule": {"name": "Remote"},
+                                "employment": {"name": "Full-time"},
+                                "experience": {"name": "3-6 years"},
+                            }
+                        ],
+                        "pages": 3,
+                    }
+                ),
+                FakeResponse(
+                    {
+                        "items": [
+                            {
+                                "id": "102",
+                                "name": "AI Integrations Engineer",
+                                "alternate_url": "https://hh.example/102",
+                                "employer": {"name": "AI Team"},
+                                "area": {"name": "Remote"},
+                                "schedule": {"name": "Remote"},
+                                "employment": {"name": "Full-time"},
+                                "experience": {"name": "3-6 years"},
+                            }
+                        ],
+                        "pages": 3,
+                    }
+                ),
+                FakeResponse(
+                    {
+                        "items": [
+                            {
+                                "id": "103",
+                                "name": "RAG Engineer",
+                                "alternate_url": "https://hh.example/103",
+                                "employer": {"name": "AI Team"},
+                                "area": {"name": "Remote"},
+                                "schedule": {"name": "Remote"},
+                                "employment": {"name": "Full-time"},
+                                "experience": {"name": "3-6 years"},
+                            }
+                        ],
+                        "pages": 3,
+                    }
+                ),
+            ]
+        )
+        client = HeadHunterClient(base_url="https://api.hh.ru", user_agent="test-agent")
+        client.session = session
+
+        vacancies = client.search_vacancies_by_query(
+            SearchQuery(name="ai_primary", text="LLM backend", priority=10, per_page=100, fetch_all=True, detailed=False)
+        )
+
+        self.assertEqual([vacancy.external_id for vacancy in vacancies], ["101", "102", "103"])
+        self.assertEqual([call["params"]["page"] for call in session.calls], [0, 1, 2])
+
     def test_search_vacancies_by_query_fetches_details_when_requested(self) -> None:
         session = FakeSession(
             [

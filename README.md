@@ -104,6 +104,10 @@ PYTHONPATH=src python3 -m hh_monitor.cli list-searches
 PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db fetch-hh-profile
 ```
 
+This now fetches all hh.ru result pages for the configured profile searches, not just the first 40 vacancies per direction.
+The shipped profile uses `fetch_all = true`, `per_page = 100`, and avoids per-vacancy detail requests on the broad search stage to reduce captcha/rate-limit issues.
+After that, the `report` command performs a second-stage hydration for the top shortlist and fetches full vacancy details only for those likely finalists.
+
 4. Refresh your already-applied vacancies from hh.ru UI so they are excluded from ranking:
 
 ```bash
@@ -125,6 +129,7 @@ PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db report \
 Notes about this flow:
 
 - `fetch-hh-profile` pulls vacancies from hh.ru public API using the search groups in `config/profile.toml`
+- the broad hh.ru profile searches now exhaust all result pages instead of stopping at `pages = 2`
 - `export-my-applications` updates local application history from the hh.ru UI and excludes those vacancies from later ranking
 - `report` does not pull fresh hh.ru data itself; it works from the local SQLite DB and sends prepared evidence to OpenAI
 - the report now uses only remote vacancies and only AI/Ruby-track vacancies before sending them to OpenAI
@@ -222,6 +227,7 @@ Generate a markdown report via OpenAI after the deterministic pipeline prepares 
 ```bash
 PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db report \
   --cv-path data/Alexander_Kharitonov_CV_ENG_2026.pdf \
+  --hydrate-top 80 \
   --output data/application_report.md \
   --top-apply 20 \
   --top-maybe 20 \
@@ -245,6 +251,7 @@ Requirements:
 - `OPENAI_REPORT_MODEL` controls which model is used and defaults to `gpt-5`
 - deterministic score/label are sent as advisory evidence, but the final report text and prioritization come from OpenAI
 - the report is built from remote-only vacancies and only `ai` / `ruby` tracks
+- before sending evidence to OpenAI, the app refreshes the top `--hydrate-top` vacancies through the hh.ru detail endpoint for better descriptions and requirements
 
 ## Draft Cover Letters
 

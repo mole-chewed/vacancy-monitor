@@ -43,11 +43,12 @@ enabled = true
 priority = 10
 label = "AI Primary"
 text = "((GenAI OR AI OR LLM OR RAG OR \"AI platform\" OR \"AI systems\" OR \"AI automation\") AND (backend OR integrations OR API OR platform))"
-area = 113
-per_page = 20
-pages = 2
+per_page = 100
+pages = 1
+fetch_all = true
+schedule = "remote"
 only_with_salary = false
-detailed = true
+detailed = false
 order_by = "publication_time"
 
 [search.ai_transition]
@@ -55,10 +56,11 @@ enabled = true
 priority = 20
 label = "AI Transition"
 text = "((LLM OR RAG OR embeddings OR vector OR automation OR agents) AND (backend OR python OR integrations OR platform))"
-area = 113
-per_page = 20
-pages = 2
-detailed = true
+per_page = 100
+pages = 1
+fetch_all = true
+schedule = "remote"
+detailed = false
 order_by = "publication_time"
 
 [search.ruby_primary]
@@ -66,8 +68,9 @@ enabled = true
 priority = 30
 label = "Ruby Primary"
 text = "((Ruby OR \"Ruby on Rails\" OR Rails OR RoR) AND (backend OR API OR PostgreSQL OR Sidekiq))"
-area = 113
-per_page = 20
-pages = 2
-detailed = true
+per_page = 100
+pages = 1
+fetch_all = true
+schedule = "remote"
+detailed = false
 order_by = "publication_time"
