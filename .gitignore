@@ -1,0 +1,25 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.idea/
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.db
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local candidate-specific config
+config/profile.toml
+
+# Runtime and private exports
+data/*
+!data/sample_vacancies.json
+!data/sample_hh_responses.html
+
+# Scratch files
+test.txt

@@ -1,0 +1,1 @@
+"""Vacancy ingestion sources."""

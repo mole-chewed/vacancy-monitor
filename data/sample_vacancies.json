@@ -1,0 +1,54 @@
+[
+  {
+    "id": "genai-backend-001",
+    "name": "GenAI Backend Engineer",
+    "alternate_url": "https://hh.example/genai-backend-001",
+    "employer": {"name": "AI Integrations Lab"},
+    "salary": {"from": 420000, "to": 520000, "currency": "RUR"},
+    "area": {"name": "Remote"},
+    "schedule": {"name": "Full time"},
+    "employment": {"name": "Full-time"},
+    "experience": {"name": "3-6 years"},
+    "description": "Build backend services for LLM integrations, RAG pipelines, tool calling, vector search, PostgreSQL, Redis, and API orchestration. Python is useful, but strong backend architecture and integrations experience matters most.",
+    "key_skills": [{"name": "Python"}, {"name": "PostgreSQL"}, {"name": "Redis"}, {"name": "RAG"}, {"name": "LLM"}]
+  },
+  {
+    "id": "ruby-rails-002",
+    "name": "Senior Ruby on Rails Developer",
+    "alternate_url": "https://hh.example/ruby-rails-002",
+    "employer": {"name": "Payments Platform"},
+    "salary": {"from": 380000, "to": 450000, "currency": "RUR"},
+    "area": {"name": "Moscow"},
+    "schedule": {"name": "Remote"},
+    "employment": {"name": "Full-time"},
+    "experience": {"name": "6+ years"},
+    "description": "Own Rails monolith and APIs, optimize Sidekiq jobs, PostgreSQL, Redis, GraphQL, and AWS infrastructure.",
+    "key_skills": [{"name": "Ruby on Rails"}, {"name": "PostgreSQL"}, {"name": "Redis"}, {"name": "Sidekiq"}]
+  },
+  {
+    "id": "product-ai-003",
+    "name": "Technical Product Lead (AI)",
+    "alternate_url": "https://hh.example/product-ai-003",
+    "employer": {"name": "AI Product Studio"},
+    "salary": {"from": 450000, "to": 650000, "currency": "RUR"},
+    "area": {"name": "Moscow"},
+    "schedule": {"name": "Hybrid"},
+    "employment": {"name": "Full-time"},
+    "experience": {"name": "6+ years"},
+    "description": "Drive AI product strategy, roadmap, stakeholder management, and experimentation. Strong product leadership required.",
+    "key_skills": [{"name": "Product Management"}, {"name": "AI"}]
+  },
+  {
+    "id": "ml-research-004",
+    "name": "ML Research Engineer",
+    "alternate_url": "https://hh.example/ml-research-004",
+    "employer": {"name": "Research Models Group"},
+    "salary": {"from": 500000, "to": 700000, "currency": "RUR"},
+    "area": {"name": "Remote"},
+    "schedule": {"name": "Full time"},
+    "employment": {"name": "Full-time"},
+    "experience": {"name": "3-6 years"},
+    "description": "Train and fine-tune LLMs, design evaluation methodology, publish research, and optimize distributed training.",
+    "key_skills": [{"name": "PyTorch"}, {"name": "LLM training"}, {"name": "Research"}]
+  }
+]
