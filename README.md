@@ -168,9 +168,9 @@ Environment variables live in `.env`.
 
 The example profile already defines:
 
+- `ruby_primary`
 - `ai_primary`
 - `ai_transition`
-- `ruby_primary`
 - `hh.applicant_history_url`
 - `files.ignored_vacancy_ids_path`
 
@@ -302,11 +302,11 @@ Two-layer decision:
 
 Final rank order:
 
-1. Strong AI Match
-2. AI Transition Match
-3. Moderate AI Match
-4. Strong Ruby Match
-5. Moderate Ruby Match
+1. Strong Ruby Match
+2. Moderate Ruby Match
+3. Strong AI Match
+4. AI Transition Match
+5. Moderate AI Match
 6. Possible Match
 7. Skip
 

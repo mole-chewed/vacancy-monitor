@@ -12,11 +12,11 @@ def _clamp_score(value: int) -> int:
 
 def _priority_bucket(label: MatchLabel) -> int:
     order = {
-        MatchLabel.STRONG_AI: 1,
-        MatchLabel.AI_TRANSITION: 2,
-        MatchLabel.MODERATE_AI: 3,
-        MatchLabel.STRONG_RUBY: 4,
-        MatchLabel.MODERATE_RUBY: 5,
+        MatchLabel.STRONG_RUBY: 1,
+        MatchLabel.MODERATE_RUBY: 2,
+        MatchLabel.STRONG_AI: 3,
+        MatchLabel.AI_TRANSITION: 4,
+        MatchLabel.MODERATE_AI: 5,
         MatchLabel.POSSIBLE: 6,
         MatchLabel.SKIP: 7,
     }

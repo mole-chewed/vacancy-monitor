@@ -489,11 +489,11 @@ def _hydrate_ranked_vacancies(
 
 def _label_ru(label: MatchLabel) -> str:
     mapping = {
-        MatchLabel.STRONG_AI: "AI Priority Match",
+        MatchLabel.STRONG_AI: "Strong AI Match",
         MatchLabel.AI_TRANSITION: "AI Transition Match",
         MatchLabel.MODERATE_AI: "Moderate AI Match",
-        MatchLabel.STRONG_RUBY: "Strong Ruby Match",
-        MatchLabel.MODERATE_RUBY: "Moderate Ruby Match",
+        MatchLabel.STRONG_RUBY: "Ruby Primary Match",
+        MatchLabel.MODERATE_RUBY: "Ruby Core Match",
         MatchLabel.POSSIBLE: "Possible Match",
         MatchLabel.SKIP: "Skip",
     }

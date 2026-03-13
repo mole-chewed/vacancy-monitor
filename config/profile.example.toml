@@ -24,8 +24,8 @@ target = 400000
 stretch = 550000
 
 [weights]
-ai_track_boost = 40
-ruby_track_boost = 15
+ai_track_boost = 15
+ruby_track_boost = 40
 remote_bonus = 8
 hybrid_bonus = 3
 onsite_penalty = 12
@@ -43,7 +43,7 @@ negative = ["cpo", "chief product officer", "head of product", "product manager"
 
 [search.ai_primary]
 enabled = true
-priority = 10
+priority = 20
 label = "AI Primary"
 text = "((GenAI OR AI OR LLM OR RAG OR \"AI platform\" OR \"AI systems\" OR \"AI automation\") AND (backend OR integrations OR API OR platform))"
 per_page = 100
@@ -56,7 +56,7 @@ order_by = "publication_time"
 
 [search.ai_transition]
 enabled = true
-priority = 20
+priority = 30
 label = "AI Transition"
 text = "((LLM OR RAG OR embeddings OR vector OR automation OR agents) AND (backend OR python OR integrations OR platform))"
 per_page = 100
@@ -68,7 +68,7 @@ order_by = "publication_time"
 
 [search.ruby_primary]
 enabled = true
-priority = 30
+priority = 10
 label = "Ruby Primary"
 text = "((Ruby OR \"Ruby on Rails\" OR Rails OR RoR) AND (backend OR API OR PostgreSQL OR Sidekiq))"
 per_page = 100

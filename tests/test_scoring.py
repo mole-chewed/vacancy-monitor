@@ -15,7 +15,7 @@ from hh_monitor.sources.json_import import load_vacancies_from_json
 
 
 class ScoringTestCase(unittest.TestCase):
-    def test_ai_role_ranks_above_ruby_role(self) -> None:
+    def test_ruby_role_ranks_above_ai_role(self) -> None:
         profile = load_profile("config/profile.example.toml")
         vacancies = {vacancy.external_id: vacancy for vacancy in load_vacancies_from_json("data/sample_vacancies.json")}
 
@@ -28,7 +28,7 @@ class ScoringTestCase(unittest.TestCase):
         self.assertEqual(ai_analysis.label, MatchLabel.STRONG_AI)
         self.assertEqual(ruby_analysis.track, VacancyTrack.RUBY)
         self.assertEqual(ruby_analysis.label, MatchLabel.STRONG_RUBY)
-        self.assertLess(ai_analysis.priority_bucket, ruby_analysis.priority_bucket)
+        self.assertLess(ruby_analysis.priority_bucket, ai_analysis.priority_bucket)
         self.assertEqual(product_analysis.label, MatchLabel.SKIP)
         self.assertEqual(research_analysis.label, MatchLabel.SKIP)
 
@@ -57,7 +57,7 @@ class ScoringTestCase(unittest.TestCase):
 
         self.assertEqual(analysis.track, VacancyTrack.AI)
         self.assertEqual(analysis.label, MatchLabel.AI_TRANSITION)
-        self.assertEqual(analysis.priority_bucket, 2)
+        self.assertEqual(analysis.priority_bucket, 4)
         self.assertTrue(any("Python" in concern or "python" in concern for concern in analysis.concerns))
 
     def test_product_genai_title_is_not_promoted_to_ai_priority(self) -> None:
