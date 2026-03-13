@@ -101,7 +101,7 @@ def hydrate_ranked_vacancies(
         if not getattr(adapter, "supports_detail_hydration", False):
             continue
         try:
-            payload = adapter.fetch_details(item.vacancy.external_id)
+            payload = adapter.fetch_details(item.vacancy.external_id, raw_item=item.vacancy.source_metadata)
         except (
             HeadHunterApiError,
             JobspressoApiError,

@@ -9,7 +9,7 @@ if str(SRC) not in sys.path:
 
 from hh_monitor.adapters.weworkremotely_adapter import WeWorkRemotelyAdapter
 from hh_monitor.models import SearchQuery, WorkFormat
-from hh_monitor.sources.weworkremotely_api import parse_listing_page
+from hh_monitor.sources.weworkremotely_api import parse_job_page, parse_listing_page
 
 
 SAMPLE_HTML = """
@@ -62,6 +62,24 @@ SAMPLE_HTML = """
 </section>
 """
 
+SAMPLE_DETAIL_HTML = """
+<html>
+  <head>
+    <script type="application/ld+json">
+      {
+        "@context": "http://schema.org",
+        "@type": "JobPosting",
+        "title": "Senior Ruby on Rails Developer",
+        "description": "<p>Build and maintain Ruby on Rails applications with PostgreSQL and Sidekiq.</p>",
+        "hiringOrganization": {"@type": "Organization", "name": "OnTheGoSystems"},
+        "jobLocation": {"@type": "Place", "address": "Remote"},
+        "url": "https://weworkremotely.com/remote-jobs/onthegosystems-senior-ruby-on-rails-developer-1"
+      }
+    </script>
+  </head>
+</html>
+"""
+
 
 class WeWorkRemotelyApiTestCase(unittest.TestCase):
     def test_parse_listing_page_extracts_jobs(self) -> None:
@@ -94,6 +112,36 @@ class WeWorkRemotelyApiTestCase(unittest.TestCase):
         self.assertEqual(vacancies[0].source, "weworkremotely_html:weworkremotely_ruby_primary")
         self.assertEqual(vacancies[0].work_format, WorkFormat.REMOTE)
         self.assertIn("Russian Federation", vacancies[0].requirements)
+
+    def test_parse_job_page_extracts_description(self) -> None:
+        detail = parse_job_page(
+            SAMPLE_DETAIL_HTML,
+            fallback_url="https://weworkremotely.com/remote-jobs/onthegosystems-senior-ruby-on-rails-developer-1",
+        )
+
+        self.assertIn("Ruby on Rails applications", detail["description"])
+        self.assertEqual(detail["company"], "OnTheGoSystems")
+        self.assertEqual(detail["location"], "Remote")
+
+    def test_adapter_merges_listing_and_detail_payloads(self) -> None:
+        class FakeClient:
+            def fetch_listing_page(self, url: str):
+                return parse_listing_page(SAMPLE_HTML, base_url="https://weworkremotely.com")
+
+            def get_job(self, external_id: str, *, raw_item=None):
+                self.last_external_id = external_id
+                self.last_raw_item = raw_item
+                return parse_job_page(SAMPLE_DETAIL_HTML, fallback_url=raw_item["url"])
+
+        adapter = WeWorkRemotelyAdapter(FakeClient())
+        raw_listing = parse_listing_page(SAMPLE_HTML, base_url="https://weworkremotely.com")[0]
+        vacancy = adapter.normalize(
+            {**raw_listing, "_query_name": "weworkremotely_ruby_primary"},
+            adapter.fetch_details("weworkremotely:onthegosystems-senior-ruby-on-rails-developer-1", raw_item=raw_listing),
+        )
+
+        self.assertIn("PostgreSQL and Sidekiq", vacancy.description_raw)
+        self.assertEqual(vacancy.company, "OnTheGoSystems")
 
 
 if __name__ == "__main__":

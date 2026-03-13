@@ -182,10 +182,13 @@ def vacancy_from_weworkremotely_payload(payload: dict[str, Any], source: str = "
     company = normalize_text(payload.get("company"))
     location = normalize_text(payload.get("location") or "Remote")
     categories = [normalize_text(item) for item in (payload.get("categories") or []) if normalize_text(str(item))]
-    requirements = " ".join(categories)
+    description = normalize_text(payload.get("description") or payload.get("requirements"))
+    requirements = " ".join(categories) or description
     published_at = normalize_text(payload.get("listed_at")) or None
     job_id = payload.get("id") or payload.get("url") or title
-    combined_text = " ".join(part for part in [title, company, location, requirements, " ".join(categories)] if part)
+    combined_text = " ".join(
+        part for part in [title, company, location, description, requirements, " ".join(categories)] if part
+    )
 
     return NormalizedVacancy(
         external_id=f"weworkremotely:{job_id}",
@@ -201,11 +204,11 @@ def vacancy_from_weworkremotely_payload(payload: dict[str, Any], source: str = "
         salary_currency=None,
         salary_gross=None,
         published_at=published_at,
-        description_raw=requirements,
+        description_raw=description or requirements,
         requirements=requirements,
         skills_raw=categories,
         language_requirements=[],
-        seniority=classify_seniority(title, requirements),
+        seniority=classify_seniority(title, f"{description} {requirements}".strip()),
         track=VacancyTrack.OTHER,
         normalized_text=normalize_for_match(combined_text),
         source_metadata=payload,
@@ -253,7 +256,7 @@ def vacancy_from_jobspresso_payload(payload: dict[str, Any], source: str = "jobs
     title = normalize_text(payload.get("title"))
     company = normalize_text(payload.get("company"))
     location = normalize_text(payload.get("location") or "Remote")
-    description = normalize_text(payload.get("summary"))
+    description = normalize_text(payload.get("description") or payload.get("summary"))
     requirements = normalize_text(payload.get("employment_type"))
     published_at = normalize_text(payload.get("published_at")) or None
     combined_text = " ".join(part for part in [title, company, location, description, requirements] if part)

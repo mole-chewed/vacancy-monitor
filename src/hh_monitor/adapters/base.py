@@ -15,7 +15,7 @@ class BaseAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def fetch_details(self, external_id: str) -> dict[str, Any]:
+    def fetch_details(self, external_id: str, *, raw_item: dict[str, Any] | None = None) -> dict[str, Any]:
         raise NotImplementedError
 
     @abstractmethod

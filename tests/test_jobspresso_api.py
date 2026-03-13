@@ -9,7 +9,7 @@ if str(SRC) not in sys.path:
 
 from hh_monitor.adapters.jobspresso_adapter import JobspressoAdapter
 from hh_monitor.models import SearchQuery, WorkFormat
-from hh_monitor.sources.jobspresso_api import parse_search_page
+from hh_monitor.sources.jobspresso_api import parse_job_page, parse_search_page
 
 
 SAMPLE_HTML = """
@@ -43,6 +43,23 @@ SAMPLE_HTML = """
 </article>
 """
 
+SAMPLE_DETAIL_HTML = """
+<html>
+  <head>
+    <script type="application/ld+json">{
+      "@context": "http://schema.org/",
+      "@type": "JobPosting",
+      "datePosted": "2018-06-29T22:58:31-04:00",
+      "title": "Backend Ruby on Rails Developer",
+      "description": "<p>Build backend Ruby on Rails services with PostgreSQL and Sidekiq.</p>",
+      "hiringOrganization": {"@type": "Organization", "name": "SurveyMonkey"},
+      "jobLocation": {"@type": "Place", "address": "Pacific Time Zone"},
+      "industry": "Full Time"
+    }</script>
+  </head>
+</html>
+"""
+
 
 class JobspressoApiTestCase(unittest.TestCase):
     def test_parse_search_page_skips_filled_roles(self) -> None:
@@ -73,6 +90,33 @@ class JobspressoApiTestCase(unittest.TestCase):
         self.assertEqual(vacancies[0].source, "jobspresso_html:jobspresso_ruby_primary")
         self.assertEqual(vacancies[0].work_format, WorkFormat.REMOTE)
         self.assertIn("Rails services", vacancies[0].description_raw)
+
+    def test_parse_job_page_extracts_json_ld_description(self) -> None:
+        detail = parse_job_page(SAMPLE_DETAIL_HTML, fallback_url="https://jobspresso.co/job/backend-ruby-rails-developer/")
+
+        self.assertEqual(detail["company"], "SurveyMonkey")
+        self.assertEqual(detail["location"], "Pacific Time Zone")
+        self.assertIn("PostgreSQL and Sidekiq", detail["description"])
+
+    def test_adapter_merges_search_and_detail_payloads(self) -> None:
+        class FakeClient:
+            def search_jobs(self, query_text: str, pages: int = 1):
+                return parse_search_page(SAMPLE_HTML)
+
+            def get_job(self, external_id: str, *, raw_item=None):
+                self.last_external_id = external_id
+                self.last_raw_item = raw_item
+                return parse_job_page(SAMPLE_DETAIL_HTML, fallback_url=raw_item["url"])
+
+        adapter = JobspressoAdapter(FakeClient())
+        raw_listing = parse_search_page(SAMPLE_HTML)[0]
+        vacancy = adapter.normalize(
+            {**raw_listing, "_query_name": "jobspresso_ruby_primary"},
+            adapter.fetch_details("jobspresso:27421", raw_item=raw_listing),
+        )
+
+        self.assertEqual(vacancy.company, "SurveyMonkey")
+        self.assertIn("backend Ruby on Rails services", vacancy.description_raw)
 
 
 if __name__ == "__main__":

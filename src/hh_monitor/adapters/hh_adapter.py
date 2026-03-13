@@ -18,7 +18,7 @@ class HHAdapter(BaseAdapter):
     def search(self, query: SearchQuery, **kwargs: Any) -> list[NormalizedVacancy]:
         return self.client.search_vacancies_by_query(query)
 
-    def fetch_details(self, external_id: str) -> dict[str, Any]:
+    def fetch_details(self, external_id: str, *, raw_item: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.client.get_vacancy(external_id)
 
     def normalize(self, raw_item: dict[str, Any], raw_details: dict[str, Any] | None = None) -> NormalizedVacancy:

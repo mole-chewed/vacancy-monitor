@@ -527,7 +527,7 @@ def _hydrate_ranked_vacancies(
             source_name = "hh"
             supports_detail_hydration = True
 
-            def fetch_details(self, external_id: str):
+            def fetch_details(self, external_id: str, *, raw_item=None):
                 return client.get_vacancy(external_id)
 
             def normalize(self, raw_item, raw_details=None):

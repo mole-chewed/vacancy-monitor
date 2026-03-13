@@ -199,7 +199,9 @@ Notes about this flow:
 - the Remotive adapter uses the public API feed and currently reuses feed payloads for detail hydration
 - the Remote OK adapter keeps source collection public and deterministic; it does not scrape browser pages
 - the Jobspresso adapter uses public search result pages and skips stale filled listings
-- the We Work Remotely adapter uses the public listing page and currently does not hydrate detail pages
+- the We Work Remotely adapter uses the public listing page and now performs best-effort detail hydration
+- Jobspresso detail hydration now pulls full vacancy text from the job page JSON-LD block
+- We Work Remotely detail hydration is best-effort: it attempts the vacancy page and falls back quietly to listing metadata if Cloudflare blocks the detail page
 - `export-my-applications` updates local application history from the hh.ru UI and excludes those vacancies from later ranking
 - `report` does not pull fresh hh.ru data itself; it works from the local SQLite DB and sends prepared evidence to OpenAI
 - `rank --source hh` and `report --source hh` restrict the shortlist to one provider family when you want to inspect a single source

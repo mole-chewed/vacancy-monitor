@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from html import unescape
+import json
 import re
 from typing import Any
 from urllib.parse import quote_plus
@@ -20,6 +21,8 @@ COMPANY_RE = re.compile(
 LOCATION_RE = re.compile(r'⚲&nbsp;(?P<location>.*?)</a>', re.DOTALL)
 DATE_RE = re.compile(r'<data class="entry-date entry-meta__date" value="(?P<date>[^"]+)"')
 SUMMARY_RE = re.compile(r'<div class="entry-summary"><p>(?P<summary>.*?)</p>', re.DOTALL)
+JSON_LD_RE = re.compile(r'<script type="application/ld\+json">(?P<json>.*?)</script>', re.DOTALL)
+ENTRY_CONTENT_RE = re.compile(r'<div class="job_listing-description entry-content">(.*?)</div>', re.DOTALL)
 TAG_RE = re.compile(r"<[^>]+>")
 WHITESPACE_RE = re.compile(r"\s+")
 
@@ -47,8 +50,20 @@ class JobspressoClient:
             jobs.extend(parse_search_page(response.text))
         return jobs
 
-    def get_job(self, external_id: str) -> dict[str, Any]:
-        raise NotImplementedError("Jobspresso detail hydration is not implemented in this iteration.")
+    def get_job(self, external_id: str, *, raw_item: dict[str, Any] | None = None) -> dict[str, Any]:
+        url = None
+        if isinstance(raw_item, dict):
+            url = raw_item.get("url")
+        if not url:
+            raise JobspressoApiError("Jobspresso detail hydration requires a vacancy URL from source metadata.")
+
+        response = self.session.get(url, timeout=self.timeout)
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:  # pragma: no cover - depends on live site behavior
+            detail = response.text[:500]
+            raise JobspressoApiError(f"Jobspresso detail request failed: {response.status_code} {detail}") from exc
+        return parse_job_page(response.text, fallback_url=str(url))
 
     def _build_search_url(self, query_text: str, page: int) -> str:
         if page <= 1:
@@ -87,7 +102,66 @@ def parse_search_page(html: str) -> list[dict[str, Any]]:
     return jobs
 
 
-def _match(pattern: re.Pattern[str], text: str, group: str) -> str | None:
+def parse_job_page(html: str, *, fallback_url: str | None = None) -> dict[str, Any]:
+    description = ""
+    title = ""
+    company = ""
+    location = ""
+    published_at = ""
+    employment_type = "Unknown"
+    url = fallback_url
+
+    for block in JSON_LD_RE.findall(html):
+        try:
+            payload = json.loads(unescape(block))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, list):
+            candidates = [item for item in payload if isinstance(item, dict)]
+        elif isinstance(payload, dict):
+            candidates = [payload]
+        else:
+            candidates = []
+        for item in candidates:
+            if item.get("@type") != "JobPosting":
+                continue
+            description = _clean(item.get("description"))
+            title = _clean(item.get("title"))
+            published_at = _clean(item.get("datePosted"))
+            employment_type = _clean(item.get("industry")) or employment_type
+            url = _clean(item.get("url")) or url
+            hiring_org = item.get("hiringOrganization") or {}
+            if isinstance(hiring_org, dict):
+                company = _clean(hiring_org.get("name"))
+            job_location = item.get("jobLocation")
+            if isinstance(job_location, dict):
+                location = _clean(job_location.get("address"))
+            elif isinstance(job_location, list):
+                parts = []
+                for loc in job_location:
+                    if isinstance(loc, dict):
+                        parts.append(_clean(loc.get("address")))
+                location = ", ".join(part for part in parts if part)
+            break
+        if description:
+            break
+
+    if not description:
+        description = _clean(_match(ENTRY_CONTENT_RE, html, 1))
+
+    return {
+        "url": url,
+        "title": title,
+        "company": company,
+        "location": location,
+        "published_at": published_at,
+        "employment_type": employment_type,
+        "description": description,
+        "summary": description,
+    }
+
+
+def _match(pattern: re.Pattern[str], text: str, group: str | int) -> str | None:
     match = pattern.search(text)
     if not match:
         return None

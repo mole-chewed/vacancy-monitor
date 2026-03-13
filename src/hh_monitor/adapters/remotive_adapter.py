@@ -19,7 +19,7 @@ class RemotiveAdapter(BaseAdapter):
         raw_jobs = self.client.search_jobs(query.text)
         return [self.normalize({**item, "_query_name": query.name}) for item in raw_jobs]
 
-    def fetch_details(self, external_id: str) -> dict[str, Any]:
+    def fetch_details(self, external_id: str, *, raw_item: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.client.get_job(external_id)
 
     def normalize(self, raw_item: dict[str, Any], raw_details: dict[str, Any] | None = None) -> NormalizedVacancy:
