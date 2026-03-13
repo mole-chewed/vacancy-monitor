@@ -158,6 +158,8 @@ def classify_vacancy(vacancy: Vacancy) -> TrackAssessment:
         track = VacancyTrack.OTHER
     elif data_science_signal >= ai_signal and data_science_signal >= 4 and backend_signal < 5:
         track = VacancyTrack.OTHER
+    elif ruby_signal >= 5 and ai_signal >= 8 and backend_signal >= 4:
+        track = VacancyTrack.MIXED
     elif strong_ai_title and product_signal < 5 and research_signal < 5:
         track = VacancyTrack.AI
     elif ai_signal >= 8 or (ai_signal >= 5 and backend_signal >= 3 and product_signal < 6 and research_signal < 6):

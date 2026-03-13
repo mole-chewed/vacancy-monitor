@@ -29,6 +29,11 @@ class ConfigTestCase(unittest.TestCase):
         self.assertTrue(profile.preferences.remote_only)
         self.assertTrue(profile.ignored_vacancy_ids_path.endswith("config/ignored_vacancy_ids.example.txt"))
         self.assertEqual(profile.ignored_vacancy_ids, frozenset())
+        self.assertEqual(profile.ranking.primary_track.value, "ruby")
+        self.assertEqual(profile.ranking.secondary_track.value, "ai")
+        self.assertEqual(profile.ranking.primary_track_weight, 1.35)
+        self.assertEqual(profile.ranking.mixed_track_weight, 1.2)
+        self.assertEqual(profile.ranking.secondary_track_weight, 1.0)
 
     def test_profile_loads_ignored_vacancy_ids_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

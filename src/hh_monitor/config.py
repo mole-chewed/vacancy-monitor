@@ -11,7 +11,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
     tomllib = None
 
-from hh_monitor.models import SearchQuery
+from hh_monitor.models import SearchQuery, VacancyTrack
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,15 @@ class ScoringWeights:
 
 
 @dataclass(frozen=True)
+class RankingPreferences:
+    primary_track: VacancyTrack
+    secondary_track: VacancyTrack
+    primary_track_weight: float
+    mixed_track_weight: float
+    secondary_track_weight: float
+
+
+@dataclass(frozen=True)
 class CandidateProfile:
     name: str
     summary: str
@@ -57,6 +66,7 @@ class CandidateProfile:
     preferences: CandidatePreferences
     salary: SalaryExpectation
     weights: ScoringWeights
+    ranking: RankingPreferences
     keyword_overrides: dict[str, list[str]]
     search_queries: list[SearchQuery]
 
@@ -122,6 +132,7 @@ def load_profile(config_path: str | Path = "config/profile.toml") -> CandidatePr
     preferences = data["preferences"]
     hh = data.get("hh", {})
     files = data.get("files", {})
+    ranking = data.get("ranking", {})
     salary = data["salary"]
     weights = data["weights"]
     ignored_vacancy_ids_path = _optional_str(files.get("ignored_vacancy_ids_path")) if isinstance(files, dict) else None
@@ -159,6 +170,13 @@ def load_profile(config_path: str | Path = "config/profile.toml") -> CandidatePr
             product_penalty=int(weights["product_penalty"]),
             ml_research_penalty=int(weights["ml_research_penalty"]),
             n8n_penalty=int(weights["n8n_penalty"]),
+        ),
+        ranking=RankingPreferences(
+            primary_track=VacancyTrack(_optional_str(ranking.get("primary_track")) or VacancyTrack.RUBY.value),
+            secondary_track=VacancyTrack(_optional_str(ranking.get("secondary_track")) or VacancyTrack.AI.value),
+            primary_track_weight=float(ranking.get("primary_track_weight", 1.35)),
+            mixed_track_weight=float(ranking.get("mixed_track_weight", 1.2)),
+            secondary_track_weight=float(ranking.get("secondary_track_weight", 1.0)),
         ),
         keyword_overrides={key: list(values) for key, values in data.get("keywords", {}).items()},
         search_queries=_load_search_queries(data.get("search", {})),

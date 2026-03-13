@@ -65,7 +65,7 @@ def _label_for_track(
     assessment_education: int,
     assessment_evangelist: int,
 ) -> MatchLabel:
-    if track == VacancyTrack.AI:
+    if track in {VacancyTrack.AI, VacancyTrack.MIXED}:
         if (
             score >= 85
             and assessment_product < 5
@@ -104,7 +104,18 @@ def analyze_vacancy(vacancy: Vacancy, profile: CandidateProfile) -> VacancyAnaly
     reasons: list[str] = []
     concerns: list[str] = []
 
-    if assessment.track == VacancyTrack.AI:
+    if assessment.track == VacancyTrack.MIXED:
+        score = 54 + profile.weights.ai_track_boost + profile.weights.ruby_track_boost
+        score += assessment.ai_signal * 2
+        score += assessment.ruby_signal * 2
+        score += assessment.backend_signal * 3
+        score += assessment.automation_signal
+        reasons.append("role mixes strong backend and AI signals")
+        if assessment.backend_signal >= 4:
+            reasons.append("backend and integration experience is directly relevant")
+        if assessment.ruby_signal >= 5:
+            reasons.append("Ruby backend experience transfers well")
+    elif assessment.track == VacancyTrack.AI:
         score = 50 + profile.weights.ai_track_boost
         score += assessment.ai_signal * 3
         score += assessment.backend_signal * 2

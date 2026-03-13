@@ -136,7 +136,7 @@ def build_report_evidence(
             "deterministic_score_is_advisory_only": True,
             "ruby_roles_must_rank_above_ai_roles_when_relevance_is_realistic": True,
             "already_applied_vacancies_already_excluded": True,
-            "vacancies_are_pre_filtered_to_ai_or_ruby_tracks_only": True,
+            "vacancies_are_pre_filtered_to_ruby_ai_or_mixed_tracks_only": True,
             "candidate_is_strongest_in_ruby_on_rails_backend_and_genai_is_secondary_transition_track": True,
             "vacancies_compact_count": len(compact_ranked),
             "vacancies_detailed_count": len(detailed_ranked),
@@ -157,7 +157,7 @@ def _report_system_prompt(*, top_apply: int, top_maybe: int, top_skip: int) -> s
         "Кандидат новый в GenAI с точки зрения коммерческого опыта и ищет реалистичные AI transition roles только после сильных Ruby backend вариантов. "
         "Твоя задача: проанализировать все переданные вакансии и выдать итоговый markdown-отчет на русском языке. "
         "Все вакансии уже отфильтрованы по remote-only и исключают уже обработанные отклики. "
-        "В отчете нужно рассматривать только вакансии, которые реально совпадают с профилем кандидата: в первую очередь Ruby on Rails backend, затем backend-heavy AI transition roles. "
+        "В отчете нужно рассматривать только вакансии, которые реально совпадают с профилем кандидата: в первую очередь Ruby on Rails backend, затем mixed backend+AI roles, затем backend-heavy AI transition roles. "
         "Предпочтительные семейства ролей: Ruby Backend Engineer, Senior Rails Developer, Backend Engineer (AI features), AI Product Engineer, GenAI Engineer, LLM Integration Engineer, AI Backend Engineer. "
         "Детерминированные score/label/action используй только как подсказку, а не как обязательную истину. "
         "Ты можешь менять приоритет и рекомендации, если это лучше соответствует профилю кандидата. "

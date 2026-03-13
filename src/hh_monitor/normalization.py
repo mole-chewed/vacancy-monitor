@@ -4,8 +4,9 @@ from html import unescape
 import re
 from typing import Any
 
-from hh_monitor.keywords import HYBRID_KEYWORDS, ONSITE_KEYWORDS, REMOTE_KEYWORDS
-from hh_monitor.models import SalaryRange, Vacancy, WorkFormat
+from hh_monitor.classifiers.remote_classifier import classify_remote_type
+from hh_monitor.classifiers.seniority_classifier import classify_seniority
+from hh_monitor.models import NormalizedVacancy, SalaryRange, VacancyTrack, WorkFormat
 
 
 WHITESPACE_RE = re.compile(r"\s+")
@@ -45,17 +46,21 @@ def extract_skills(payload: dict[str, Any]) -> list[str]:
 
 
 def detect_work_format(*values: str) -> WorkFormat:
-    text = " ".join(normalize_for_match(value) for value in values if value)
-    if any(keyword in text for keyword in REMOTE_KEYWORDS):
-        return WorkFormat.REMOTE
-    if any(keyword in text for keyword in HYBRID_KEYWORDS):
-        return WorkFormat.HYBRID
-    if any(keyword in text for keyword in ONSITE_KEYWORDS):
-        return WorkFormat.ONSITE
-    return WorkFormat.UNKNOWN
+    return classify_remote_type(*values)
 
 
-def vacancy_from_payload(payload: dict[str, Any], source: str = "json_import") -> Vacancy:
+def extract_language_requirements(payload: dict[str, Any]) -> list[str]:
+    languages = payload.get("languages") or []
+    extracted: list[str] = []
+    for item in languages:
+        if isinstance(item, dict) and item.get("name"):
+            extracted.append(normalize_text(item["name"]))
+        elif isinstance(item, str):
+            extracted.append(normalize_text(item))
+    return [item for item in extracted if item]
+
+
+def vacancy_from_payload(payload: dict[str, Any], source: str = "json_import") -> NormalizedVacancy:
     title = normalize_text(payload.get("name"))
     snippet = payload.get("snippet") or {}
     snippet_requirement = normalize_text(snippet.get("requirement"))
@@ -70,27 +75,46 @@ def vacancy_from_payload(payload: dict[str, Any], source: str = "json_import") -
     schedule = normalize_text((payload.get("schedule") or {}).get("name"))
     employment = normalize_text((payload.get("employment") or {}).get("name"))
     experience = normalize_text((payload.get("experience") or {}).get("name"))
+    salary = parse_salary(payload)
     skills = extract_skills(payload)
+    language_requirements = extract_language_requirements(payload)
+    published_at = normalize_text(payload.get("published_at")) or None
     combined_text = " ".join(
         part
-        for part in [title, description, requirements, responsibility, " ".join(skills), company, location, schedule]
+        for part in [
+            title,
+            description,
+            requirements,
+            responsibility,
+            " ".join(skills),
+            company,
+            location,
+            schedule,
+            " ".join(language_requirements),
+        ]
         if part
     )
 
-    return Vacancy(
+    return NormalizedVacancy(
         external_id=str(payload.get("id") or payload.get("vacancy_id") or title),
         source=source,
         title=title,
         company=company or "Unknown company",
         url=payload.get("alternate_url") or payload.get("url"),
-        salary=parse_salary(payload),
         location=location or "Unknown location",
-        work_format=detect_work_format(schedule, employment, location, description, responsibility),
+        remote_type=detect_work_format(schedule, employment, location, description, responsibility),
         employment_type=employment or "Unknown",
-        experience_level=experience or "Unknown",
-        description=description,
+        salary_from=salary.amount_from,
+        salary_to=salary.amount_to,
+        salary_currency=salary.currency,
+        salary_gross=salary.gross,
+        published_at=published_at,
+        description_raw=description,
         requirements=requirements or responsibility,
-        key_skills=skills,
+        skills_raw=skills,
+        language_requirements=language_requirements,
+        seniority=classify_seniority(title, experience),
+        track=VacancyTrack.OTHER,
         normalized_text=normalize_for_match(combined_text),
-        raw_data=payload,
+        source_metadata=payload,
     )

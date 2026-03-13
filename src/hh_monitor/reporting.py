@@ -24,7 +24,7 @@ def build_application_report_markdown(
     skip_now = [item for item in ranked if item.analysis.action == RecommendedAction.SKIP]
 
     lines = [
-        "# Отчет по вакансиям hh.ru",
+        "# Отчет по вакансиям",
         "",
         f"Сформировано: {generated_at}",
         f"Профиль: {profile.name}",
@@ -36,6 +36,7 @@ def build_application_report_markdown(
         f"- Проверить вручную: {len(review_later)}",
         f"- Пропустить: {len(skip_now)}",
         f"- AI track: {track_counts.get('ai', 0)}",
+        f"- Mixed track: {track_counts.get('mixed', 0)}",
         f"- Ruby track: {track_counts.get('ruby', 0)}",
         f"- Other track: {track_counts.get('other', 0)}",
         "",
@@ -53,7 +54,16 @@ def build_application_report_markdown(
     ):
         lines.append(f"- {LABEL_TITLES_RU[label]}: {label_counts.get(label, 0)}")
 
-    lines.extend(["", "## Что делать сначала", "1. Сначала пройти весь блок `Откликнуться сейчас` сверху вниз.", "2. Потом разобрать блок `Проверить вручную`, начиная с AI-track ролей.", "3. Блок `Пропустить` оставить только как журнал, чтобы не тратить внимание.", ""])
+    lines.extend(
+        [
+            "",
+            "## Что делать сначала",
+            "1. Сначала пройти весь блок `Откликнуться сейчас` сверху вниз.",
+            "2. Потом разобрать блок `Проверить вручную`, начиная с Ruby и mixed ролей.",
+            "3. Блок `Пропустить` оставить только как журнал, чтобы не тратить внимание.",
+            "",
+        ]
+    )
     lines.extend(_build_section("Откликнуться сейчас", apply_now, top_apply))
     lines.extend([""])
     lines.extend(_build_section("Проверить вручную", review_later, top_maybe))

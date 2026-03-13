@@ -4,16 +4,18 @@ import argparse
 import logging
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 from hh_monitor.config import load_profile, load_settings
 from hh_monitor.cv import CvExtractionError, extract_cv_text
-from hh_monitor.models import ApplicationRecord, ApplicationStatus, MatchLabel, RankedVacancy, VacancyTrack, WorkFormat
+from hh_monitor.models import ApplicationRecord, ApplicationStatus, MatchLabel, RankedVacancy, WorkFormat
 from hh_monitor.openai_reporting import (
     OpenAIReportGenerationError,
     OpenAIReportingUnavailableError,
     generate_openai_application_report,
 )
-from hh_monitor.scoring import analyze_vacancy
+from hh_monitor.pipeline import build_hh_adapter, fetch_search_queries, hydrate_ranked_vacancies as pipeline_hydrate_ranked_vacancies
+from hh_monitor.ranking import build_ranked_vacancies
 from hh_monitor.sources.json_import import load_vacancies_from_json
 from hh_monitor.storage import Storage
 from hh_monitor.ui.history_import import load_ui_application_entries
@@ -203,7 +205,6 @@ def import_json_command(args: argparse.Namespace) -> int:
 
 
 def fetch_hh_command(args: argparse.Namespace) -> int:
-    from hh_monitor.sources.hh_api import HeadHunterClient
     from hh_monitor.models import SearchQuery
 
     settings = load_settings(args.env_file)
@@ -228,13 +229,8 @@ def fetch_hh_command(args: argparse.Namespace) -> int:
 
     storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
     storage.init_db()
-    client = HeadHunterClient(
-        base_url=settings.hh_api_base_url,
-        user_agent=settings.hh_user_agent,
-        api_token=settings.hh_api_token,
-    )
-    vacancies = _filter_ignored_vacancies(client.search_vacancies_by_query(query), profile)
-    inserted = storage.upsert_vacancies(vacancies)
+    adapter = build_hh_adapter(settings)
+    inserted, _ = fetch_search_queries(adapter, [query], profile=profile, storage=storage)
     print(f"Fetched and saved {inserted} vacancies from hh.ru")
     return 0
 
@@ -273,8 +269,6 @@ def list_searches_command(args: argparse.Namespace) -> int:
 
 
 def fetch_hh_profile_command(args: argparse.Namespace) -> int:
-    from hh_monitor.sources.hh_api import HeadHunterClient
-
     settings = load_settings(args.env_file)
     configure_logging(settings.log_level)
     profile = load_profile(args.config)
@@ -297,19 +291,8 @@ def fetch_hh_profile_command(args: argparse.Namespace) -> int:
 
     storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
     storage.init_db()
-    client = HeadHunterClient(
-        base_url=settings.hh_api_base_url,
-        user_agent=settings.hh_user_agent,
-        api_token=settings.hh_api_token,
-    )
-
-    total = 0
-    for query in queries:
-        fetched = client.search_vacancies_by_query(query)
-        vacancies = _filter_ignored_vacancies(fetched, profile)
-        inserted = storage.upsert_vacancies(vacancies)
-        total += inserted
-        print(f"{query.name}: fetched {len(fetched)} vacancies, saved {inserted}")
+    adapter = build_hh_adapter(settings)
+    total, _ = fetch_search_queries(adapter, queries, profile=profile, storage=storage)
     print(f"Total fetched and saved from hh.ru profile queries: {total}")
     return 0
 
@@ -335,78 +318,6 @@ def _filter_ignored_vacancies(vacancies: list, profile) -> list:
     return filtered
 
 
-def _should_keep_ranked_vacancy(item: RankedVacancy) -> bool:
-    analysis = item.analysis
-    title = item.vacancy.title.lower()
-    red_flags = set(analysis.red_flags)
-
-    hard_skip_red_flags = {
-        "hard-excluded-ml-research",
-        "automation-only",
-        "architect-heavy",
-        "frontend-heavy",
-        "product-heavy",
-        "org-leadership-heavy",
-        "data-science-heavy",
-        "qa-heavy",
-        "legacy-stack-heavy",
-        "education-heavy",
-        "evangelist-heavy",
-        "strong-python-background-required",
-    }
-    if red_flags & hard_skip_red_flags:
-        return False
-
-    if analysis.track == VacancyTrack.AI:
-        title_exclusions = [
-            "python",
-            "analyst",
-            "аналитик",
-            "rpa",
-            "no-code",
-            "no code",
-            "no - code",
-            "low-code",
-            "low code",
-            "low - code",
-            "automation",
-            "автоматизац",
-            "automation specialist",
-            "automation lead",
-            "руководитель",
-            "tech lead",
-            "lead ",
-            "fullstack",
-            "full stack",
-        ]
-        if any(term in title for term in title_exclusions):
-            return False
-
-        backend_terms = set(analysis.matched_keywords.get("backend", []))
-        backend_focused_title_terms = [
-            "backend",
-            "back-end",
-            "platform",
-            "integration",
-            "integrations",
-            "api",
-            "бэкенд",
-            "интеграц",
-            "llm integration",
-            "ai backend",
-            "genai engineer",
-            "llm engineer",
-            "rag engineer",
-        ]
-        if backend_terms:
-            return True
-        if any(term in title for term in backend_focused_title_terms):
-            return True
-        return False
-
-    return True
-
-
 def _ranked_vacancies(storage: Storage, config_path: str, excluded: set[ApplicationStatus]) -> list[RankedVacancy]:
     profile = load_profile(config_path)
     statuses = storage.get_application_statuses()
@@ -415,28 +326,7 @@ def _ranked_vacancies(storage: Storage, config_path: str, excluded: set[Applicat
         vacancies = [vacancy for vacancy in vacancies if vacancy.external_id not in profile.ignored_vacancy_ids]
     if profile.preferences.remote_only:
         vacancies = [vacancy for vacancy in vacancies if vacancy.work_format == WorkFormat.REMOTE]
-    ranked: list[RankedVacancy] = []
-    for vacancy in vacancies:
-        analysis = analyze_vacancy(vacancy, profile)
-        if analysis.track not in {VacancyTrack.AI, VacancyTrack.RUBY}:
-            continue
-        ranked_item = RankedVacancy(
-            vacancy=vacancy,
-            analysis=analysis,
-            application_status=statuses.get(vacancy.external_id, ApplicationStatus.NEW),
-        )
-        if not _should_keep_ranked_vacancy(ranked_item):
-            continue
-        ranked.append(ranked_item)
-    ranked.sort(
-        key=lambda item: (
-            item.analysis.priority_bucket,
-            -item.analysis.score,
-            -len(item.analysis.reasons),
-            item.vacancy.title.lower(),
-        )
-    )
-    return ranked
+    return build_ranked_vacancies(vacancies, profile=profile, statuses=statuses)
 
 
 def _hydrate_ranked_vacancies(
@@ -455,36 +345,16 @@ def _hydrate_ranked_vacancies(
     if not ranked:
         return ranked
 
-    if client is None:
-        from hh_monitor.sources.hh_api import HeadHunterClient
-
-        client = HeadHunterClient(
-            base_url=settings.hh_api_base_url,
-            user_agent=settings.hh_user_agent,
-            api_token=settings.hh_api_token,
-        )
-
-    from hh_monitor.normalization import vacancy_from_payload
-    from hh_monitor.sources.hh_api import HeadHunterApiError
-
-    selected = ranked[:limit]
-    refreshed = []
-    for item in selected:
-        vacancy_id = item.vacancy.external_id
-        if not vacancy_id.isdigit():
-            continue
-        try:
-            payload = client.get_vacancy(vacancy_id)
-        except HeadHunterApiError as exc:
-            LOGGER.warning("Failed to hydrate vacancy %s: %s", vacancy_id, exc)
-            continue
-        refreshed.append(vacancy_from_payload(payload, source=item.vacancy.source))
-
-    if refreshed:
-        storage.upsert_vacancies(refreshed)
-        LOGGER.info("Hydrated %s shortlisted vacancies via hh.ru detail endpoint", len(refreshed))
-
-    return _ranked_vacancies(storage, config_path, excluded)
+    adapter = build_hh_adapter(settings) if client is None else SimpleNamespace(fetch_details=client.get_vacancy, source_name="hh")
+    profile = load_profile(config_path)
+    return pipeline_hydrate_ranked_vacancies(
+        ranked,
+        adapter=adapter,
+        storage=storage,
+        profile=profile,
+        excluded=excluded,
+        limit=limit,
+    )
 
 
 def _label_ru(label: MatchLabel) -> str:

@@ -35,6 +35,13 @@ product_penalty = 22
 ml_research_penalty = 30
 n8n_penalty = 10
 
+[ranking]
+primary_track = "ruby"
+secondary_track = "ai"
+primary_track_weight = 1.35
+mixed_track_weight = 1.2
+secondary_track_weight = 1.0
+
 [keywords]
 ai_positive = ["genai", "ai", "llm", "rag", "embeddings", "vector db", "pgvector", "qdrant", "ai automation", "agents", "tool calling", "ai platform", "ai systems", "prompt engineering"]
 ruby_positive = ["ruby", "ruby on rails", "ror", "rails", "sidekiq"]

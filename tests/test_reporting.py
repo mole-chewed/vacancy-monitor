@@ -35,7 +35,7 @@ class ReportingTestCase(unittest.TestCase):
 
         report = build_application_report_markdown(profile, ranked, top_apply=5, top_maybe=5, top_skip=5)
 
-        self.assertIn("# Отчет по вакансиям hh.ru", report)
+        self.assertIn("# Отчет по вакансиям", report)
         self.assertIn("## Откликнуться сейчас", report)
         self.assertIn("## Проверить вручную", report)
         self.assertIn("## Пропустить", report)

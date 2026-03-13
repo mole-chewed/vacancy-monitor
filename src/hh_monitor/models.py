@@ -11,8 +11,9 @@ def utc_now_iso() -> str:
 
 
 class VacancyTrack(str, Enum):
-    AI = "ai"
     RUBY = "ruby"
+    AI = "ai"
+    MIXED = "mixed"
     OTHER = "other"
 
 
@@ -20,6 +21,14 @@ class WorkFormat(str, Enum):
     REMOTE = "remote"
     HYBRID = "hybrid"
     ONSITE = "onsite"
+    UNKNOWN = "unknown"
+
+
+class SeniorityLevel(str, Enum):
+    JUNIOR = "junior"
+    MIDDLE = "middle"
+    SENIOR = "senior"
+    LEAD = "lead"
     UNKNOWN = "unknown"
 
 
@@ -66,28 +75,76 @@ class SalaryRange:
 
 
 @dataclass(frozen=True)
-class Vacancy:
+class NormalizedVacancy:
     external_id: str
     source: str
     title: str
     company: str
     url: str | None
-    salary: SalaryRange
     location: str
-    work_format: WorkFormat
+    remote_type: WorkFormat
     employment_type: str
-    experience_level: str
-    description: str
+    salary_from: int | None
+    salary_to: int | None
+    salary_currency: str | None
+    salary_gross: bool | None
+    published_at: str | None
+    description_raw: str
     requirements: str
-    key_skills: list[str]
+    skills_raw: list[str]
+    language_requirements: list[str]
+    seniority: SeniorityLevel
+    track: VacancyTrack
     normalized_text: str
-    raw_data: dict[str, Any]
+    source_metadata: dict[str, Any]
+    deterministic_score: int | None = None
+    priority_score: float | None = None
+    llm_score: float | None = None
+    final_recommendation: str | None = None
+    fit_summary: str | None = None
+    missing_skills: list[str] = field(default_factory=list)
+    cv_focus_points: list[str] = field(default_factory=list)
+    interview_topics: list[str] = field(default_factory=list)
     created_at: str = field(default_factory=utc_now_iso)
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
-        data["work_format"] = self.work_format.value
+        data["remote_type"] = self.remote_type.value
+        data["seniority"] = self.seniority.value
+        data["track"] = self.track.value
         return data
+
+    @property
+    def salary(self) -> SalaryRange:
+        return SalaryRange(
+            amount_from=self.salary_from,
+            amount_to=self.salary_to,
+            currency=self.salary_currency,
+            gross=self.salary_gross,
+        )
+
+    @property
+    def work_format(self) -> WorkFormat:
+        return self.remote_type
+
+    @property
+    def experience_level(self) -> str:
+        return self.seniority.value
+
+    @property
+    def description(self) -> str:
+        return self.description_raw
+
+    @property
+    def key_skills(self) -> list[str]:
+        return self.skills_raw
+
+    @property
+    def raw_data(self) -> dict[str, Any]:
+        return self.source_metadata
+
+
+Vacancy = NormalizedVacancy
 
 
 @dataclass(frozen=True)
