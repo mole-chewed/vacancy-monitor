@@ -68,7 +68,11 @@ class HeadHunterClient:
                             query.name,
                             exc,
                         )
-                vacancies.append(vacancy_from_payload(vacancy_payload, source=f"hh_api:{query.name}"))
+                vacancy = vacancy_from_payload(vacancy_payload, source=f"hh_api:{query.name}")
+                if vacancy.is_archived:
+                    LOGGER.info("Skipped archived hh vacancy %s for query %s", vacancy.external_id, query.name)
+                    continue
+                vacancies.append(vacancy)
             LOGGER.info("Fetched %s vacancies from hh.ru page %s for query %s", len(items), page, query.name)
             total_pages = page_payload.get("pages")
             if not items:

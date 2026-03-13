@@ -143,6 +143,11 @@ class NormalizedVacancy:
     def raw_data(self) -> dict[str, Any]:
         return self.source_metadata
 
+    @property
+    def is_archived(self) -> bool:
+        raw_value = self.source_metadata.get("archived")
+        return bool(raw_value)
+
 
 Vacancy = NormalizedVacancy
 

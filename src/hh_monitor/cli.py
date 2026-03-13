@@ -471,6 +471,14 @@ def _filter_ignored_vacancies(vacancies: list, profile) -> list:
     return filtered
 
 
+def _filter_archived_vacancies(vacancies: list) -> list:
+    filtered = [vacancy for vacancy in vacancies if not getattr(vacancy, "is_archived", False)]
+    skipped = len(vacancies) - len(filtered)
+    if skipped:
+        LOGGER.info("Skipped %s archived vacancies", skipped)
+    return filtered
+
+
 def _filter_queries_by_source(queries, source_name: str | None):
     if not source_name:
         return list(queries)
@@ -495,6 +503,7 @@ def _ranked_vacancies(
     profile = load_profile(config_path)
     statuses = storage.get_application_statuses()
     vacancies = storage.list_vacancies(exclude_statuses=excluded)
+    vacancies = _filter_archived_vacancies(vacancies)
     vacancies = _filter_vacancies_by_source(vacancies, source_name)
     if profile.ignored_vacancy_ids or profile.ignored_vacancy_ids_by_source:
         vacancies = [vacancy for vacancy in vacancies if not vacancy_is_ignored(profile, vacancy)]

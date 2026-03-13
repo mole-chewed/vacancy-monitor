@@ -190,6 +190,47 @@ class HeadHunterClientTestCase(unittest.TestCase):
         self.assertEqual(len(vacancies), 1)
         self.assertEqual(session.calls[1]["url"], "https://api.hh.ru/vacancies/101")
 
+    def test_search_vacancies_by_query_skips_archived_items(self) -> None:
+        session = FakeSession(
+            [
+                FakeResponse(
+                    {
+                        "items": [
+                            {
+                                "id": "101",
+                                "name": "Senior Ruby Developer",
+                                "alternate_url": "https://hh.example/101",
+                                "employer": {"name": "Ruby Co"},
+                                "area": {"name": "Remote"},
+                                "schedule": {"name": "Remote"},
+                                "employment": {"name": "Full-time"},
+                                "experience": {"name": "3-6 years"},
+                                "archived": True,
+                            },
+                            {
+                                "id": "102",
+                                "name": "Senior Ruby on Rails Developer",
+                                "alternate_url": "https://hh.example/102",
+                                "employer": {"name": "Ruby Co"},
+                                "area": {"name": "Remote"},
+                                "schedule": {"name": "Remote"},
+                                "employment": {"name": "Full-time"},
+                                "experience": {"name": "3-6 years"},
+                            },
+                        ]
+                    }
+                )
+            ]
+        )
+        client = HeadHunterClient(base_url="https://api.hh.ru", user_agent="test-agent")
+        client.session = session
+
+        vacancies = client.search_vacancies_by_query(
+            SearchQuery(source="hh", name="ruby_primary", text="Ruby on Rails", priority=10, pages=1)
+        )
+
+        self.assertEqual([vacancy.external_id for vacancy in vacancies], ["102"])
+
     def test_raises_clear_error_on_bad_response(self) -> None:
         session = FakeSession([FakeResponse({"error": "rate limit"}, status_code=429, text="too many requests")])
         client = HeadHunterClient(base_url="https://api.hh.ru", user_agent="test-agent")

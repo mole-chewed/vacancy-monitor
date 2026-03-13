@@ -119,6 +119,48 @@ class ReportingTestCase(unittest.TestCase):
 
         self.assertNotIn("genai-backend-001", {item.vacancy.external_id for item in ranked})
 
+    def test_ranked_vacancies_exclude_archived_hh_items_already_in_storage(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            storage = Storage(Path(temp_dir) / "hh_monitor.db")
+            storage.init_db()
+            storage.upsert_vacancies(
+                [
+                    vacancy_from_payload(
+                        {
+                            "id": "130090775",
+                            "name": "Senior Ruby Developer",
+                            "alternate_url": "https://hh.example/130090775",
+                            "employer": {"name": "Ruby Co"},
+                            "area": {"name": "Remote"},
+                            "schedule": {"name": "Remote"},
+                            "employment": {"name": "Full-time"},
+                            "experience": {"name": "3-6 years"},
+                            "description": "Ruby on Rails, PostgreSQL, Sidekiq.",
+                            "archived": True,
+                        },
+                        source="hh_api:ruby_primary",
+                    ),
+                    vacancy_from_payload(
+                        {
+                            "id": "130090776",
+                            "name": "Senior Ruby on Rails Developer",
+                            "alternate_url": "https://hh.example/130090776",
+                            "employer": {"name": "Ruby Co"},
+                            "area": {"name": "Remote"},
+                            "schedule": {"name": "Remote"},
+                            "employment": {"name": "Full-time"},
+                            "experience": {"name": "3-6 years"},
+                            "description": "Ruby on Rails, PostgreSQL, Sidekiq.",
+                        },
+                        source="hh_api:ruby_primary",
+                    ),
+                ]
+            )
+
+            ranked = _ranked_vacancies(storage, "config/profile.example.toml", excluded=set(), source_name="hh")
+
+        self.assertEqual([item.vacancy.external_id for item in ranked], ["130090776"])
+
     def test_hydrate_ranked_vacancies_refreshes_shortlist_details(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             storage = Storage(Path(temp_dir) / "hh_monitor.db")
