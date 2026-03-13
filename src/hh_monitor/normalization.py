@@ -210,3 +210,40 @@ def vacancy_from_weworkremotely_payload(payload: dict[str, Any], source: str = "
         normalized_text=normalize_for_match(combined_text),
         source_metadata=payload,
     )
+
+
+def vacancy_from_remotive_payload(payload: dict[str, Any], source: str = "remotive_api") -> NormalizedVacancy:
+    title = normalize_text(payload.get("title"))
+    company = normalize_text(payload.get("company_name"))
+    location = normalize_text(payload.get("candidate_required_location") or "Remote")
+    tags = [normalize_text(str(tag)) for tag in (payload.get("tags") or []) if normalize_text(str(tag))]
+    description = normalize_text(payload.get("description"))
+    requirements = " ".join(tags)
+    published_at = normalize_text(payload.get("publication_date")) or None
+    salary_text = normalize_text(payload.get("salary"))
+    salary_currency = "USD" if "$" in salary_text else None
+    combined_text = " ".join(part for part in [title, company, location, description, requirements, " ".join(tags)] if part)
+
+    return NormalizedVacancy(
+        external_id=f"remotive:{payload.get('id')}",
+        source=source,
+        title=title or "Unknown title",
+        company=company or "Unknown company",
+        url=payload.get("url"),
+        location=location or "Remote",
+        remote_type=detect_work_format("remote", location, description, requirements),
+        employment_type=normalize_text(payload.get("job_type") or "Unknown"),
+        salary_from=None,
+        salary_to=None,
+        salary_currency=salary_currency,
+        salary_gross=None,
+        published_at=published_at,
+        description_raw=description,
+        requirements=requirements,
+        skills_raw=tags,
+        language_requirements=[],
+        seniority=classify_seniority(title, requirements),
+        track=VacancyTrack.OTHER,
+        normalized_text=normalize_for_match(combined_text),
+        source_metadata=payload,
+    )

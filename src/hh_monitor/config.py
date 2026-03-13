@@ -79,6 +79,8 @@ class AppSettings:
     hh_api_base_url: str
     hh_user_agent: str
     hh_api_token: str | None
+    remotive_api_base_url: str
+    remotive_user_agent: str
     remoteok_api_base_url: str
     remoteok_user_agent: str
     weworkremotely_base_url: str
@@ -121,6 +123,10 @@ def load_settings(env_path: str | Path = ".env") -> AppSettings:
         hh_user_agent=_env_get("HH_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file)
         or "hh-positions-validation/0.1 (+local-cli)",
         hh_api_token=_env_get("HH_API_TOKEN", None, env_file),
+        remotive_api_base_url=_env_get("REMOTIVE_API_BASE_URL", "https://remotive.com", env_file)
+        or "https://remotive.com",
+        remotive_user_agent=_env_get("REMOTIVE_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file)
+        or "hh-positions-validation/0.1 (+local-cli)",
         remoteok_api_base_url=_env_get("REMOTEOK_API_BASE_URL", "https://remoteok.com", env_file)
         or "https://remoteok.com",
         remoteok_user_agent=_env_get("REMOTEOK_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file)

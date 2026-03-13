@@ -15,7 +15,7 @@ Core modules:
 
 - `config.py`: loads TOML profile config and environment variables
 - `models.py`: typed domain models and enums
-- `adapters/`: source adapters (`hh`, `remoteok`, future placeholders like `linkedin`)
+- `adapters/`: source adapters (`hh`, `remotive`, `remoteok`, `weworkremotely`, future placeholders like `linkedin`)
 - `keywords.py`: Russian and English keyword dictionaries
 - `normalization.py`: salary, work format, seniority, skills, and text normalization
 - `classifier.py`: AI / Ruby / Other track decision
@@ -24,6 +24,7 @@ Core modules:
 - `pipeline.py`: source adapter registry and multi-source orchestration
 - `storage.py`: SQLite schema, persistence, application history, ranking runs
 - `sources/hh_api.py`: hh.ru search ingestion
+- `sources/remotive_api.py`: Remotive public API ingestion
 - `sources/remoteok_api.py`: Remote OK public API ingestion
 - `sources/weworkremotely_api.py`: We Work Remotely listing-page ingestion
 - `sources/json_import.py`: local JSON / JSONL ingestion
@@ -32,6 +33,7 @@ Core modules:
 Public API boundary today:
 
 - supported: public hh.ru vacancy search and vacancy details
+- supported: public Remotive job feed
 - supported: public Remote OK job feed
 - supported: We Work Remotely public listing pages
 - placeholder only: LinkedIn adapter exists but collection is intentionally not implemented in this iteration
@@ -79,6 +81,7 @@ PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db init-db
 PYTHONPATH=src python -m hh_monitor.cli list-searches
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-hh --text "GenAI backend"
+PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-remotive --text "Ruby"
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-remoteok --text "Ruby Rails backend"
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-weworkremotely --url "https://weworkremotely.com/remote-ruby-on-rails-jobs"
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db import-ui-history --input data/sample_hh_responses.html
@@ -120,6 +123,7 @@ Provider-specific ignore files are also supported under `config/ignored_vacancie
 
 ```text
 config/ignored_vacancies/hh.txt
+config/ignored_vacancies/remotive.txt
 config/ignored_vacancies/remoteok.txt
 config/ignored_vacancies/weworkremotely.txt
 ```
@@ -135,11 +139,13 @@ The shipped profile includes:
 
 - hh.ru Ruby queries
 - We Work Remotely Ruby queries
+- Remotive Ruby queries
 - hh.ru AI queries
+- Remotive AI transition queries
 - Remote OK Ruby queries
 - Remote OK AI transition queries
 
-HH queries can exhaust all result pages. Remote OK loads the public feed once and applies the configured query text locally. We Work Remotely currently ingests the public Ruby on Rails listing page directly.
+HH queries can exhaust all result pages. Remotive and Remote OK load the current public feed and apply the configured query text locally. We Work Remotely currently ingests the public Ruby on Rails listing page directly.
 After that, the `report` command performs a second-stage hydration for shortlisted vacancies where the adapter supports detail fetches.
 
 5. Refresh your already-applied vacancies from hh.ru UI so they are excluded from ranking:
@@ -168,11 +174,13 @@ Notes about this flow:
 
 - `fetch-profile` pulls vacancies from every configured source adapter using the search groups in `config/profile.toml`
 - `fetch-hh-profile` remains as a compatibility alias, but it now routes through the same multi-source fetch pipeline
+- `fetch-remotive` allows ad hoc Remotive imports without editing the profile
 - `fetch-remoteok` allows ad hoc Remote OK imports without editing the profile
 - `fetch-weworkremotely` allows ad hoc We Work Remotely imports from a specific listing page URL
 - vacancy ids listed in `config/ignored_vacancy_ids.txt` are skipped during import and excluded from ranking/report even if they already exist in SQLite
 - provider-specific ignore files in `config/ignored_vacancies/*.txt` are applied by source family
 - the broad hh.ru profile searches exhaust all result pages instead of stopping at `pages = 2`
+- the Remotive adapter uses the public API feed and currently reuses feed payloads for detail hydration
 - the Remote OK adapter keeps source collection public and deterministic; it does not scrape browser pages
 - the We Work Remotely adapter uses the public listing page and currently does not hydrate detail pages
 - `export-my-applications` updates local application history from the hh.ru UI and excludes those vacancies from later ranking
@@ -204,8 +212,10 @@ The example profile already defines:
 
 - `ruby_primary`
 - `weworkremotely_ruby_primary`
+- `remotive_ruby_primary`
 - `remoteok_ruby_primary`
 - `ai_primary`
+- `remotive_ai_transition`
 - `remoteok_ai_transition`
 - `ai_transition`
 - `hh.applicant_history_url`
@@ -218,6 +228,7 @@ The repository includes:
 - [profile.example.toml](/Users/sashah/p/hh-positions-validation/config/profile.example.toml)
 - [ignored_vacancy_ids.example.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancy_ids.example.txt)
 - [hh.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/hh.txt)
+- [remotive.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/remotive.txt)
 - [remoteok.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/remoteok.txt)
 - [weworkremotely.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/weworkremotely.txt)
 
@@ -230,6 +241,7 @@ Your local editable ignore file is:
 Provider-specific ignore files can also be added under:
 
 - `config/ignored_vacancies/hh.txt`
+- `config/ignored_vacancies/remotive.txt`
 - `config/ignored_vacancies/remoteok.txt`
 - `config/ignored_vacancies/weworkremotely.txt`
 

@@ -52,6 +52,10 @@ def build_parser() -> argparse.ArgumentParser:
     fetch_remoteok.add_argument("--text", required=True, help="Search text")
     fetch_remoteok.add_argument("--dry-run", action="store_true", help="Print the configured request without calling Remote OK")
 
+    fetch_remotive = subparsers.add_parser("fetch-remotive", help="Fetch vacancies from Remotive public API")
+    fetch_remotive.add_argument("--text", required=True, help="Search text")
+    fetch_remotive.add_argument("--dry-run", action="store_true", help="Print the configured request without calling Remotive")
+
     fetch_wwr = subparsers.add_parser("fetch-weworkremotely", help="Fetch vacancies from We Work Remotely")
     fetch_wwr.add_argument("--url", required=True, help="Listing page URL")
     fetch_wwr.add_argument("--text", default="Ruby on Rails", help="Search label text")
@@ -268,6 +272,26 @@ def fetch_remoteok_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def fetch_remotive_command(args: argparse.Namespace) -> int:
+    from hh_monitor.models import SearchQuery
+
+    settings = load_settings(args.env_file)
+    configure_logging(settings.log_level)
+    profile = load_profile(args.config)
+    query = SearchQuery(source="remotive", name="ad_hoc", text=args.text, fetch_all=True, pages=1, per_page=100)
+    if args.dry_run:
+        print(f"Remotive request plan for {query.name}:")
+        print({"source": query.source, "endpoint": "/api/remote-jobs", "query_filter": query.text})
+        return 0
+
+    storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
+    storage.init_db()
+    adapters = build_adapter_registry(settings)
+    inserted, _, _ = fetch_search_queries(adapters, [query], profile=profile, storage=storage)
+    print(f"Fetched and saved {inserted} vacancies from Remotive")
+    return 0
+
+
 def fetch_weworkremotely_command(args: argparse.Namespace) -> int:
     from hh_monitor.models import SearchQuery
 
@@ -356,6 +380,8 @@ def fetch_profile_command(args: argparse.Namespace) -> int:
                     print("    ... fetch_all=true, will continue until hh.ru pages are exhausted")
             elif query.source == "remoteok":
                 print(f"    {{'endpoint': '/api', 'query_filter': {query.text!r}}}")
+            elif query.source == "remotive":
+                print(f"    {{'endpoint': '/api/remote-jobs', 'query_filter': {query.text!r}}}")
             elif query.source == "weworkremotely":
                 print(f"    {{'url': {query.source_url!r}, 'query_filter': {query.text!r}}}")
             else:
@@ -664,6 +690,8 @@ def main(argv: list[str] | None = None) -> int:
         return fetch_hh_command(args)
     if args.command == "fetch-remoteok":
         return fetch_remoteok_command(args)
+    if args.command == "fetch-remotive":
+        return fetch_remotive_command(args)
     if args.command == "fetch-weworkremotely":
         return fetch_weworkremotely_command(args)
     if args.command == "list-searches":

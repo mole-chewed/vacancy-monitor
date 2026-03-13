@@ -119,3 +119,23 @@ source_url = "https://weworkremotely.com/remote-ruby-on-rails-jobs"
 per_page = 100
 pages = 1
 fetch_all = false
+
+[search.remotive_ruby_primary]
+enabled = true
+source = "remotive"
+priority = 14
+label = "Remotive Ruby Primary"
+text = "((Ruby OR \"Ruby on Rails\" OR Rails OR RoR) AND (backend OR API OR PostgreSQL OR Sidekiq))"
+per_page = 100
+pages = 1
+fetch_all = true
+
+[search.remotive_ai_transition]
+enabled = true
+source = "remotive"
+priority = 24
+label = "Remotive AI Transition"
+text = "((LLM OR RAG OR OpenAI OR Anthropic OR GenAI) AND (backend OR integrations OR API OR platform))"
+per_page = 100
+pages = 1
+fetch_all = true

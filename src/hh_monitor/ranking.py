@@ -149,6 +149,8 @@ def _freshness_bonus(vacancy: Vacancy) -> float:
         published = datetime.fromisoformat(vacancy.published_at.replace("Z", "+00:00"))
     except ValueError:
         return 0.0
+    if published.tzinfo is None:
+        published = published.replace(tzinfo=timezone.utc)
     age_days = max((datetime.now(timezone.utc) - published).days, 0)
     if age_days <= 1:
         return 6.0

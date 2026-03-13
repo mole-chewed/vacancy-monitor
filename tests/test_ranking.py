@@ -78,6 +78,34 @@ class RankingTestCase(unittest.TestCase):
         self.assertTrue(all(item.vacancy.priority_score is not None for item in ranked))
         self.assertTrue(all(item.vacancy.final_recommendation is not None for item in ranked))
 
+    def test_build_ranked_vacancies_accepts_naive_published_at(self) -> None:
+        profile = load_profile("config/profile.example.toml")
+        vacancy = vacancy_from_payload(
+            {
+                "id": "ruby-naive-1",
+                "name": "Senior Ruby on Rails Developer",
+                "alternate_url": "https://hh.example/ruby-naive-1",
+                "employer": {"name": "Ruby Co"},
+                "area": {"name": "Remote"},
+                "schedule": {"name": "Remote"},
+                "employment": {"name": "Full-time"},
+                "experience": {"name": "Более 6 лет"},
+                "published_at": "2026-03-10T10:00:00",
+                "description": "Ruby on Rails, Sidekiq, PostgreSQL, Redis, APIs, AWS.",
+                "key_skills": [{"name": "Ruby on Rails"}, {"name": "Sidekiq"}],
+            },
+            source="hh_api:ruby_primary",
+        )
+
+        ranked = build_ranked_vacancies(
+            [vacancy],
+            profile=profile,
+            statuses={vacancy.external_id: ApplicationStatus.NEW},
+        )
+
+        self.assertEqual(len(ranked), 1)
+        self.assertIsNotNone(ranked[0].vacancy.priority_score)
+
 
 if __name__ == "__main__":
     unittest.main()

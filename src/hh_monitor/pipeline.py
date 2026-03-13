@@ -5,12 +5,14 @@ import logging
 from hh_monitor.adapters.base import BaseAdapter
 from hh_monitor.adapters.hh_adapter import HHAdapter
 from hh_monitor.adapters.linkedin_adapter import LinkedInAdapter
+from hh_monitor.adapters.remotive_adapter import RemotiveAdapter
 from hh_monitor.adapters.remoteok_adapter import RemoteOkAdapter
 from hh_monitor.adapters.weworkremotely_adapter import WeWorkRemotelyAdapter
 from hh_monitor.config import CandidateProfile, source_family, vacancy_is_ignored
 from hh_monitor.models import ApplicationStatus, RankedVacancy, SearchQuery
 from hh_monitor.ranking import build_ranked_vacancies
 from hh_monitor.sources.hh_api import HeadHunterApiError, HeadHunterClient
+from hh_monitor.sources.remotive_api import RemotiveApiError, RemotiveClient
 from hh_monitor.sources.remoteok_api import RemoteOkApiError, RemoteOkClient
 from hh_monitor.sources.weworkremotely_api import WeWorkRemotelyClient
 from hh_monitor.storage import Storage
@@ -32,6 +34,12 @@ def build_adapter_registry(settings) -> dict[str, BaseAdapter]:
             RemoteOkClient(
                 base_url=getattr(settings, "remoteok_api_base_url", "https://remoteok.com"),
                 user_agent=getattr(settings, "remoteok_user_agent", settings.hh_user_agent),
+            )
+        ),
+        "remotive": RemotiveAdapter(
+            RemotiveClient(
+                base_url=getattr(settings, "remotive_api_base_url", "https://remotive.com"),
+                user_agent=getattr(settings, "remotive_user_agent", settings.hh_user_agent),
             )
         ),
         "weworkremotely": WeWorkRemotelyAdapter(
@@ -84,7 +92,7 @@ def hydrate_ranked_vacancies(
             continue
         try:
             payload = adapter.fetch_details(item.vacancy.external_id)
-        except (HeadHunterApiError, RemoteOkApiError, NotImplementedError, RuntimeError) as exc:
+        except (HeadHunterApiError, RemoteOkApiError, RemotiveApiError, NotImplementedError, RuntimeError) as exc:
             LOGGER.warning("Failed to hydrate vacancy %s via adapter %s: %s", item.vacancy.external_id, family, exc)
             continue
         refreshed.append(adapter.normalize(item.vacancy.source_metadata, payload))
