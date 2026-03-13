@@ -53,7 +53,7 @@ SAMPLE_DETAIL_HTML = """
       "title": "Backend Ruby on Rails Developer",
       "description": "<p>Build backend Ruby on Rails services with PostgreSQL and Sidekiq.</p>",
       "hiringOrganization": {"@type": "Organization", "name": "SurveyMonkey"},
-      "jobLocation": {"@type": "Place", "address": "Pacific Time Zone"},
+      "jobLocation": {"@type": "Place", "address": {"addressLocality": "San Francisco", "addressRegion": "CA", "addressCountry": "USA"}},
       "industry": "Full Time"
     }</script>
   </head>
@@ -77,7 +77,7 @@ class JobspressoApiTestCase(unittest.TestCase):
                 self.last_pages = pages
                 return parse_search_page(SAMPLE_HTML)
 
-            def get_job(self, external_id: str):
+            def get_job(self, external_id: str, *, raw_item=None):
                 raise NotImplementedError
 
         adapter = JobspressoAdapter(FakeClient())
@@ -95,7 +95,7 @@ class JobspressoApiTestCase(unittest.TestCase):
         detail = parse_job_page(SAMPLE_DETAIL_HTML, fallback_url="https://jobspresso.co/job/backend-ruby-rails-developer/")
 
         self.assertEqual(detail["company"], "SurveyMonkey")
-        self.assertEqual(detail["location"], "Pacific Time Zone")
+        self.assertEqual(detail["location"], "San Francisco, CA, USA")
         self.assertIn("PostgreSQL and Sidekiq", detail["description"])
 
     def test_adapter_merges_search_and_detail_payloads(self) -> None:

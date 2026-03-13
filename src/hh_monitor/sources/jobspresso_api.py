@@ -135,12 +135,12 @@ def parse_job_page(html: str, *, fallback_url: str | None = None) -> dict[str, A
                 company = _clean(hiring_org.get("name"))
             job_location = item.get("jobLocation")
             if isinstance(job_location, dict):
-                location = _clean(job_location.get("address"))
+                location = _clean_address(job_location.get("address"))
             elif isinstance(job_location, list):
                 parts = []
                 for loc in job_location:
                     if isinstance(loc, dict):
-                        parts.append(_clean(loc.get("address")))
+                        parts.append(_clean_address(loc.get("address")))
                 location = ", ".join(part for part in parts if part)
             break
         if description:
@@ -173,3 +173,15 @@ def _clean(value: str | None) -> str:
         return ""
     no_tags = TAG_RE.sub(" ", unescape(value))
     return WHITESPACE_RE.sub(" ", no_tags).strip()
+
+
+def _clean_address(value: Any) -> str:
+    if isinstance(value, dict):
+        parts = [
+            _clean(value.get("streetAddress")),
+            _clean(value.get("addressLocality")),
+            _clean(value.get("addressRegion")),
+            _clean(value.get("addressCountry")),
+        ]
+        return ", ".join(part for part in parts if part)
+    return _clean(value)
