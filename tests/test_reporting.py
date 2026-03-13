@@ -222,10 +222,10 @@ class ReportingTestCase(unittest.TestCase):
             storage.init_db()
             vacancy = vacancy_from_payload(
                 {
-                    "id": "jobspresso-1",
+                    "id": "wwr-1",
                     "name": "Senior Ruby on Rails Developer",
-                    "alternate_url": "https://jobspresso.example/jobspresso-1",
-                    "employer": {"name": "Jobspresso Ruby Co"},
+                    "alternate_url": "https://weworkremotely.example/wwr-1",
+                    "employer": {"name": "WWR Ruby Co"},
                     "area": {"name": "Remote"},
                     "schedule": {"name": "Remote"},
                     "employment": {"name": "Full-time"},
@@ -233,10 +233,10 @@ class ReportingTestCase(unittest.TestCase):
                     "description": "Ruby on Rails, Sidekiq, PostgreSQL.",
                     "key_skills": [{"name": "Ruby on Rails"}],
                 },
-                source="jobspresso_html:jobspresso_ruby_primary",
+                source="weworkremotely_html:weworkremotely_ruby_primary",
             )
             storage.upsert_vacancies([vacancy])
-            ranked = _ranked_vacancies(storage, "config/profile.example.toml", excluded=set(), source_name="jobspresso")
+            ranked = _ranked_vacancies(storage, "config/profile.example.toml", excluded=set(), source_name="weworkremotely")
 
             class UnsupportedAdapter:
                 supports_detail_hydration = False
@@ -250,7 +250,7 @@ class ReportingTestCase(unittest.TestCase):
             with patch("hh_monitor.pipeline.LOGGER.warning") as warning_mock:
                 hydrated = pipeline_hydrate_ranked_vacancies(
                     ranked,
-                    adapters={"jobspresso": UnsupportedAdapter()},
+                    adapters={"weworkremotely": UnsupportedAdapter()},
                     storage=storage,
                     profile=load_profile("config/profile.example.toml"),
                     excluded=set(),

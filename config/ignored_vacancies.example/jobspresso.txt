@@ -1,4 +1,0 @@
-# Add one Jobspresso vacancy id per line.
-# You can use either the raw numeric post id or the full external id, for example:
-# 27421
-# jobspresso:27421

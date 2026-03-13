@@ -23,9 +23,8 @@ class ConfigTestCase(unittest.TestCase):
                 "weworkremotely_ruby_primary",
                 "remotive_ruby_primary",
                 "remoteok_ruby_primary",
-                "jobspresso_ruby_primary",
-                "ai_primary",
                 "remotive_ai_transition",
+                "ai_primary",
                 "remoteok_ai_transition",
                 "ai_transition",
             ],
@@ -36,7 +35,6 @@ class ConfigTestCase(unittest.TestCase):
         self.assertEqual(profile.search_queries[1].source_url, "https://weworkremotely.com/remote-ruby-on-rails-jobs")
         self.assertEqual(profile.search_queries[2].source, "remotive")
         self.assertEqual(profile.search_queries[3].source, "remoteok")
-        self.assertEqual(profile.search_queries[4].source, "jobspresso")
         self.assertFalse(profile.search_queries[0].detailed)
         self.assertIsNone(profile.search_queries[0].area)
         self.assertTrue(profile.search_queries[0].fetch_all)
@@ -50,7 +48,6 @@ class ConfigTestCase(unittest.TestCase):
         self.assertTrue(profile.ignored_vacancy_ids_path.endswith("config/ignored_vacancy_ids.example.txt"))
         self.assertEqual(profile.ignored_vacancy_ids, frozenset())
         self.assertIn("hh", profile.ignored_vacancy_ids_by_source)
-        self.assertIn("jobspresso", profile.ignored_vacancy_ids_by_source)
         self.assertIn("remotive", profile.ignored_vacancy_ids_by_source)
         self.assertIn("remoteok", profile.ignored_vacancy_ids_by_source)
         self.assertIn("weworkremotely", profile.ignored_vacancy_ids_by_source)

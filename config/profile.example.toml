@@ -130,20 +130,10 @@ per_page = 100
 pages = 1
 fetch_all = true
 
-[search.jobspresso_ruby_primary]
-enabled = true
-source = "jobspresso"
-priority = 16
-label = "Jobspresso Ruby Primary"
-text = "ruby on rails"
-per_page = 10
-pages = 2
-fetch_all = false
-
 [search.remotive_ai_transition]
 enabled = true
 source = "remotive"
-priority = 24
+priority = 16
 label = "Remotive AI Transition"
 text = "((LLM OR RAG OR OpenAI OR Anthropic OR GenAI) AND (backend OR integrations OR API OR platform))"
 per_page = 100
