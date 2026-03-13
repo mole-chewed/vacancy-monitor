@@ -4,6 +4,7 @@ import logging
 
 from hh_monitor.adapters.base import BaseAdapter
 from hh_monitor.adapters.hh_adapter import HHAdapter
+from hh_monitor.adapters.jobspresso_adapter import JobspressoAdapter
 from hh_monitor.adapters.linkedin_adapter import LinkedInAdapter
 from hh_monitor.adapters.remotive_adapter import RemotiveAdapter
 from hh_monitor.adapters.remoteok_adapter import RemoteOkAdapter
@@ -12,6 +13,7 @@ from hh_monitor.config import CandidateProfile, source_family, vacancy_is_ignore
 from hh_monitor.models import ApplicationStatus, RankedVacancy, SearchQuery
 from hh_monitor.ranking import build_ranked_vacancies
 from hh_monitor.sources.hh_api import HeadHunterApiError, HeadHunterClient
+from hh_monitor.sources.jobspresso_api import JobspressoApiError, JobspressoClient
 from hh_monitor.sources.remotive_api import RemotiveApiError, RemotiveClient
 from hh_monitor.sources.remoteok_api import RemoteOkApiError, RemoteOkClient
 from hh_monitor.sources.weworkremotely_api import WeWorkRemotelyClient
@@ -28,6 +30,12 @@ def build_adapter_registry(settings) -> dict[str, BaseAdapter]:
                 base_url=settings.hh_api_base_url,
                 user_agent=settings.hh_user_agent,
                 api_token=settings.hh_api_token,
+            )
+        ),
+        "jobspresso": JobspressoAdapter(
+            JobspressoClient(
+                base_url=getattr(settings, "jobspresso_base_url", "https://jobspresso.co"),
+                user_agent=getattr(settings, "jobspresso_user_agent", settings.hh_user_agent),
             )
         ),
         "remoteok": RemoteOkAdapter(
@@ -92,7 +100,14 @@ def hydrate_ranked_vacancies(
             continue
         try:
             payload = adapter.fetch_details(item.vacancy.external_id)
-        except (HeadHunterApiError, RemoteOkApiError, RemotiveApiError, NotImplementedError, RuntimeError) as exc:
+        except (
+            HeadHunterApiError,
+            JobspressoApiError,
+            RemoteOkApiError,
+            RemotiveApiError,
+            NotImplementedError,
+            RuntimeError,
+        ) as exc:
             LOGGER.warning("Failed to hydrate vacancy %s via adapter %s: %s", item.vacancy.external_id, family, exc)
             continue
         refreshed.append(adapter.normalize(item.vacancy.source_metadata, payload))

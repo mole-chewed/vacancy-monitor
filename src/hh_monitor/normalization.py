@@ -247,3 +247,37 @@ def vacancy_from_remotive_payload(payload: dict[str, Any], source: str = "remoti
         normalized_text=normalize_for_match(combined_text),
         source_metadata=payload,
     )
+
+
+def vacancy_from_jobspresso_payload(payload: dict[str, Any], source: str = "jobspresso_html") -> NormalizedVacancy:
+    title = normalize_text(payload.get("title"))
+    company = normalize_text(payload.get("company"))
+    location = normalize_text(payload.get("location") or "Remote")
+    description = normalize_text(payload.get("summary"))
+    requirements = normalize_text(payload.get("employment_type"))
+    published_at = normalize_text(payload.get("published_at")) or None
+    combined_text = " ".join(part for part in [title, company, location, description, requirements] if part)
+
+    return NormalizedVacancy(
+        external_id=f"jobspresso:{payload.get('id')}",
+        source=source,
+        title=title or "Unknown title",
+        company=company or "Unknown company",
+        url=payload.get("url"),
+        location=location or "Remote",
+        remote_type=detect_work_format("remote", location, description, requirements),
+        employment_type=requirements or "Unknown",
+        salary_from=None,
+        salary_to=None,
+        salary_currency=None,
+        salary_gross=None,
+        published_at=published_at,
+        description_raw=description,
+        requirements=requirements,
+        skills_raw=[],
+        language_requirements=[],
+        seniority=classify_seniority(title, description),
+        track=VacancyTrack.OTHER,
+        normalized_text=normalize_for_match(combined_text),
+        source_metadata=payload,
+    )

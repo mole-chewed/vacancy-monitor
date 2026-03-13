@@ -5,6 +5,38 @@ from hh_monitor.config import CandidateProfile
 from hh_monitor.models import MatchLabel, RecommendedAction, Vacancy, VacancyAnalysis, VacancyTrack, WorkFormat
 from hh_monitor.summaries import build_expected_salary, build_summary_ru
 
+HARD_GEO_RESTRICTION_KEYWORDS = [
+    "anywhere in us",
+    "us only",
+    "usa only",
+    "united states only",
+    "us or canada",
+    "usa or canada",
+    "canada only",
+    "within canada",
+    "within the us",
+    "within the usa",
+    "europe only",
+    "eu only",
+    "uk only",
+    "united kingdom only",
+    "australia only",
+    "new zealand only",
+    "latin america only",
+    "latam only",
+]
+
+TIMEZONE_RESTRICTION_KEYWORDS = [
+    "pacific time zone",
+    "eastern time zone",
+    "mountain time zone",
+    "us central time zone",
+    "us time zones",
+    "usa timezones",
+    "north america time zones",
+    "americas time zones",
+]
+
 
 def _clamp_score(value: int) -> int:
     return max(0, min(100, value))
@@ -50,6 +82,17 @@ def _salary_adjustment(vacancy: Vacancy, profile: CandidateProfile, reasons: lis
         return 0
     concerns.append("salary may be below expectation")
     return -4
+
+
+def _geo_adjustment(vacancy: Vacancy, concerns: list[str]) -> int:
+    haystack = " ".join(part for part in [vacancy.location, vacancy.description_raw, vacancy.requirements] if part).lower()
+    if any(keyword in haystack for keyword in HARD_GEO_RESTRICTION_KEYWORDS):
+        concerns.append("role appears limited to a geography incompatible with Russia-based remote work")
+        return -120
+    if any(keyword in haystack for keyword in TIMEZONE_RESTRICTION_KEYWORDS):
+        concerns.append("role may expect North America timezone overlap")
+        return -12
+    return 0
 
 
 def _label_for_track(
@@ -144,6 +187,7 @@ def analyze_vacancy(vacancy: Vacancy, profile: CandidateProfile) -> VacancyAnaly
 
     score += _work_format_adjustment(vacancy, profile, reasons, concerns)
     score += _salary_adjustment(vacancy, profile, reasons, concerns)
+    score += _geo_adjustment(vacancy, concerns)
 
     if assessment.python_strict_signal >= 4:
         score -= profile.weights.python_strong_penalty

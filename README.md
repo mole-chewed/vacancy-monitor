@@ -26,6 +26,7 @@ Core modules:
 - `sources/hh_api.py`: hh.ru search ingestion
 - `sources/remotive_api.py`: Remotive public API ingestion
 - `sources/remoteok_api.py`: Remote OK public API ingestion
+- `sources/jobspresso_api.py`: Jobspresso search-page ingestion
 - `sources/weworkremotely_api.py`: We Work Remotely listing-page ingestion
 - `sources/json_import.py`: local JSON / JSONL ingestion
 - `cli.py`: user-facing commands
@@ -35,6 +36,7 @@ Public API boundary today:
 - supported: public hh.ru vacancy search and vacancy details
 - supported: public Remotive job feed
 - supported: public Remote OK job feed
+- supported: Jobspresso public search pages
 - supported: We Work Remotely public listing pages
 - placeholder only: LinkedIn adapter exists but collection is intentionally not implemented in this iteration
 - not yet supported: account-specific data sync
@@ -81,6 +83,7 @@ PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db init-db
 PYTHONPATH=src python -m hh_monitor.cli list-searches
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-hh --text "GenAI backend"
+PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-jobspresso --text "ruby on rails" --pages 2
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-remotive --text "Ruby"
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-remoteok --text "Ruby Rails backend"
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-weworkremotely --url "https://weworkremotely.com/remote-ruby-on-rails-jobs"
@@ -123,6 +126,7 @@ Provider-specific ignore files are also supported under `config/ignored_vacancie
 
 ```text
 config/ignored_vacancies/hh.txt
+config/ignored_vacancies/jobspresso.txt
 config/ignored_vacancies/remotive.txt
 config/ignored_vacancies/remoteok.txt
 config/ignored_vacancies/weworkremotely.txt
@@ -140,6 +144,7 @@ The shipped profile includes:
 - hh.ru Ruby queries
 - We Work Remotely Ruby queries
 - Remotive Ruby queries
+- Jobspresso Ruby queries
 - hh.ru AI queries
 - Remotive AI transition queries
 - Remote OK Ruby queries
@@ -176,16 +181,19 @@ Notes about this flow:
 - `fetch-hh-profile` remains as a compatibility alias, but it now routes through the same multi-source fetch pipeline
 - `fetch-remotive` allows ad hoc Remotive imports without editing the profile
 - `fetch-remoteok` allows ad hoc Remote OK imports without editing the profile
+- `fetch-jobspresso` allows ad hoc Jobspresso search imports without editing the profile
 - `fetch-weworkremotely` allows ad hoc We Work Remotely imports from a specific listing page URL
 - vacancy ids listed in `config/ignored_vacancy_ids.txt` are skipped during import and excluded from ranking/report even if they already exist in SQLite
 - provider-specific ignore files in `config/ignored_vacancies/*.txt` are applied by source family
 - the broad hh.ru profile searches exhaust all result pages instead of stopping at `pages = 2`
 - the Remotive adapter uses the public API feed and currently reuses feed payloads for detail hydration
 - the Remote OK adapter keeps source collection public and deterministic; it does not scrape browser pages
+- the Jobspresso adapter uses public search result pages and skips stale filled listings
 - the We Work Remotely adapter uses the public listing page and currently does not hydrate detail pages
 - `export-my-applications` updates local application history from the hh.ru UI and excludes those vacancies from later ranking
 - `report` does not pull fresh hh.ru data itself; it works from the local SQLite DB and sends prepared evidence to OpenAI
 - the report now uses only remote vacancies and only AI/Ruby-track vacancies before sending them to OpenAI
+- explicit geography restrictions like `US only` or `US or Canada` are penalized so they do not crowd out Russia-compatible remote roles
 - ML research, model-training, computer-vision, diffusion, architect, Python-title-heavy, and automation-only roles are deterministically excluded before report generation
 
 For package imports without installation:
@@ -214,6 +222,7 @@ The example profile already defines:
 - `weworkremotely_ruby_primary`
 - `remotive_ruby_primary`
 - `remoteok_ruby_primary`
+- `jobspresso_ruby_primary`
 - `ai_primary`
 - `remotive_ai_transition`
 - `remoteok_ai_transition`
@@ -228,6 +237,7 @@ The repository includes:
 - [profile.example.toml](/Users/sashah/p/hh-positions-validation/config/profile.example.toml)
 - [ignored_vacancy_ids.example.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancy_ids.example.txt)
 - [hh.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/hh.txt)
+- [jobspresso.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/jobspresso.txt)
 - [remotive.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/remotive.txt)
 - [remoteok.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/remoteok.txt)
 - [weworkremotely.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/weworkremotely.txt)

@@ -152,6 +152,50 @@ class ScoringTestCase(unittest.TestCase):
         self.assertTrue(any("department-lead" in concern.lower() for concern in analysis.concerns))
         self.assertTrue(any("1c" in concern.lower() or "bitrix" in concern.lower() for concern in analysis.concerns))
 
+    def test_us_or_canada_remote_role_is_skipped_for_geo_fit(self) -> None:
+        profile = load_profile("config/profile.example.toml")
+        vacancy = vacancy_from_payload(
+            {
+                "id": "geo-us-canada-010",
+                "name": "Ruby on Rails Developer",
+                "alternate_url": "https://hh.example/geo-us-canada-010",
+                "employer": {"name": "North America Only Inc"},
+                "area": {"name": "US or Canada"},
+                "schedule": {"name": "Remote"},
+                "employment": {"name": "Full-time"},
+                "experience": {"name": "3-6 years"},
+                "description": "Senior Ruby on Rails role for candidates in the US or Canada only.",
+                "key_skills": [{"name": "Ruby on Rails"}, {"name": "PostgreSQL"}],
+            }
+        )
+
+        analysis = analyze_vacancy(vacancy, profile)
+
+        self.assertEqual(analysis.label, MatchLabel.SKIP)
+        self.assertTrue(any("geography incompatible" in concern for concern in analysis.concerns))
+
+    def test_timezone_only_remote_role_gets_concern(self) -> None:
+        profile = load_profile("config/profile.example.toml")
+        vacancy = vacancy_from_payload(
+            {
+                "id": "geo-timezone-011",
+                "name": "Backend Ruby on Rails Developer",
+                "alternate_url": "https://hh.example/geo-timezone-011",
+                "employer": {"name": "Timezone Co"},
+                "area": {"name": "Pacific Time Zone"},
+                "schedule": {"name": "Remote"},
+                "employment": {"name": "Full-time"},
+                "experience": {"name": "3-6 years"},
+                "description": "Ruby backend role aligned with Pacific Time Zone collaboration.",
+                "key_skills": [{"name": "Ruby on Rails"}, {"name": "API"}],
+            }
+        )
+
+        analysis = analyze_vacancy(vacancy, profile)
+
+        self.assertNotEqual(analysis.label, MatchLabel.SKIP)
+        self.assertTrue(any("timezone overlap" in concern.lower() for concern in analysis.concerns))
+
 
 if __name__ == "__main__":
     unittest.main()
