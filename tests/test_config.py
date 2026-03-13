@@ -15,8 +15,13 @@ class ConfigTestCase(unittest.TestCase):
     def test_profile_loads_search_queries_in_priority_order(self) -> None:
         profile = load_profile("config/profile.example.toml")
 
-        self.assertEqual([query.name for query in profile.search_queries], ["ruby_primary", "ai_primary", "ai_transition"])
+        self.assertEqual(
+            [query.name for query in profile.search_queries],
+            ["ruby_primary", "remoteok_ruby_primary", "ai_primary", "remoteok_ai_transition", "ai_transition"],
+        )
         self.assertEqual(profile.search_queries[0].priority, 10)
+        self.assertEqual(profile.search_queries[0].source, "hh")
+        self.assertEqual(profile.search_queries[1].source, "remoteok")
         self.assertFalse(profile.search_queries[0].detailed)
         self.assertIsNone(profile.search_queries[0].area)
         self.assertTrue(profile.search_queries[0].fetch_all)

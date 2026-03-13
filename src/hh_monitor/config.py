@@ -78,6 +78,8 @@ class AppSettings:
     hh_api_base_url: str
     hh_user_agent: str
     hh_api_token: str | None
+    remoteok_api_base_url: str
+    remoteok_user_agent: str
     openai_api_key: str | None
     openai_report_model: str
 
@@ -116,6 +118,10 @@ def load_settings(env_path: str | Path = ".env") -> AppSettings:
         hh_user_agent=_env_get("HH_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file)
         or "hh-positions-validation/0.1 (+local-cli)",
         hh_api_token=_env_get("HH_API_TOKEN", None, env_file),
+        remoteok_api_base_url=_env_get("REMOTEOK_API_BASE_URL", "https://remoteok.com", env_file)
+        or "https://remoteok.com",
+        remoteok_user_agent=_env_get("REMOTEOK_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file)
+        or "hh-positions-validation/0.1 (+local-cli)",
         openai_api_key=_env_get("OPENAI_API_KEY", None, env_file),
         openai_report_model=_env_get("OPENAI_REPORT_MODEL", "gpt-5", env_file) or "gpt-5",
     )
@@ -244,6 +250,7 @@ def _load_search_queries(raw_search: object) -> list[SearchQuery]:
             continue
         queries.append(
             SearchQuery(
+                source=_optional_str(payload.get("source")) or "hh",
                 name=name,
                 label=str(payload.get("label", name.replace("_", " ").title())),
                 text=str(text),

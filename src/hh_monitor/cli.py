@@ -14,7 +14,7 @@ from hh_monitor.openai_reporting import (
     OpenAIReportingUnavailableError,
     generate_openai_application_report,
 )
-from hh_monitor.pipeline import build_hh_adapter, fetch_search_queries, hydrate_ranked_vacancies as pipeline_hydrate_ranked_vacancies
+from hh_monitor.pipeline import build_adapter_registry, fetch_search_queries, hydrate_ranked_vacancies as pipeline_hydrate_ranked_vacancies
 from hh_monitor.ranking import build_ranked_vacancies
 from hh_monitor.sources.json_import import load_vacancies_from_json
 from hh_monitor.storage import Storage
@@ -26,7 +26,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="hh.ru vacancy monitor")
+    parser = argparse.ArgumentParser(description="Multi-source vacancy monitor")
     parser.add_argument("--config", default="config/profile.toml", help="Path to TOML candidate profile")
     parser.add_argument("--env-file", default=".env", help="Path to .env file")
     parser.add_argument("--db-path", default=None, help="Override SQLite database path")
@@ -48,8 +48,15 @@ def build_parser() -> argparse.ArgumentParser:
     fetch_hh.add_argument("--detailed", action="store_true", help="Fetch per-vacancy detail endpoint")
     fetch_hh.add_argument("--dry-run", action="store_true", help="Print the request params without calling hh.ru")
 
-    subparsers.add_parser("list-searches", help="Print hh.ru search queries from profile config")
-    fetch_profile = subparsers.add_parser("fetch-hh-profile", help="Fetch vacancies from hh.ru using profile searches")
+    fetch_remoteok = subparsers.add_parser("fetch-remoteok", help="Fetch vacancies from Remote OK public API")
+    fetch_remoteok.add_argument("--text", required=True, help="Search text")
+    fetch_remoteok.add_argument("--dry-run", action="store_true", help="Print the configured request without calling Remote OK")
+
+    subparsers.add_parser("list-searches", help="Print configured source queries from profile config")
+    fetch_profile = subparsers.add_parser("fetch-profile", help="Fetch vacancies from all configured source adapters")
+    fetch_profile.add_argument("--limit-queries", type=int, default=None, help="Only run the first N configured queries")
+    fetch_profile.add_argument("--dry-run", action="store_true", help="Print configured requests without calling APIs")
+    fetch_profile = subparsers.add_parser("fetch-hh-profile", help="Compatibility alias for fetch-profile")
     fetch_profile.add_argument("--limit-queries", type=int, default=None, help="Only run the first N configured queries")
     fetch_profile.add_argument("--dry-run", action="store_true", help="Print configured requests without calling hh.ru")
 
@@ -211,6 +218,7 @@ def fetch_hh_command(args: argparse.Namespace) -> int:
     configure_logging(settings.log_level)
     profile = load_profile(args.config)
     query = SearchQuery(
+        source="hh",
         name="ad_hoc",
         text=args.text,
         area=args.area,
@@ -229,9 +237,29 @@ def fetch_hh_command(args: argparse.Namespace) -> int:
 
     storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
     storage.init_db()
-    adapter = build_hh_adapter(settings)
-    inserted, _ = fetch_search_queries(adapter, [query], profile=profile, storage=storage)
+    adapters = build_adapter_registry(settings)
+    inserted, _, _ = fetch_search_queries(adapters, [query], profile=profile, storage=storage)
     print(f"Fetched and saved {inserted} vacancies from hh.ru")
+    return 0
+
+
+def fetch_remoteok_command(args: argparse.Namespace) -> int:
+    from hh_monitor.models import SearchQuery
+
+    settings = load_settings(args.env_file)
+    configure_logging(settings.log_level)
+    profile = load_profile(args.config)
+    query = SearchQuery(source="remoteok", name="ad_hoc", text=args.text, fetch_all=True, pages=1, per_page=100)
+    if args.dry_run:
+        print(f"Remote OK request plan for {query.name}:")
+        print({"source": query.source, "endpoint": "/api", "query_filter": query.text})
+        return 0
+
+    storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
+    storage.init_db()
+    adapters = build_adapter_registry(settings)
+    inserted, _, _ = fetch_search_queries(adapters, [query], profile=profile, storage=storage)
+    print(f"Fetched and saved {inserted} vacancies from Remote OK")
     return 0
 
 
@@ -245,7 +273,7 @@ def list_searches_command(args: argparse.Namespace) -> int:
 
     for query in profile.search_queries:
         print(
-            f"{query.priority:>3} | {query.name} | label={query.label} | pages={query.pages} | per_page={query.per_page}"
+            f"{query.priority:>3} | {query.source} | {query.name} | label={query.label} | pages={query.pages} | per_page={query.per_page}"
         )
         print(f"    text={query.text}")
         extras = []
@@ -268,32 +296,39 @@ def list_searches_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def fetch_hh_profile_command(args: argparse.Namespace) -> int:
+def fetch_profile_command(args: argparse.Namespace) -> int:
     settings = load_settings(args.env_file)
     configure_logging(settings.log_level)
     profile = load_profile(args.config)
     if not profile.search_queries:
-        print("No hh.ru search queries configured in profile.", file=sys.stderr)
+        print("No search queries configured in profile.", file=sys.stderr)
         return 1
 
     queries = profile.search_queries[: args.limit_queries] if args.limit_queries else profile.search_queries
     if args.dry_run:
         for query in queries:
-            print(f"{query.name} ({query.label}):")
-            preview_pages = query.pages if not query.fetch_all else 3
-            for page in range(preview_pages):
-                params = query.to_params()
-                params["page"] = page
-                print(f"    {params}")
-            if query.fetch_all:
-                print("    ... fetch_all=true, will continue until hh.ru pages are exhausted")
+            print(f"{query.source}:{query.name} ({query.label}):")
+            if query.source == "hh":
+                preview_pages = query.pages if not query.fetch_all else 3
+                for page in range(preview_pages):
+                    params = query.to_params()
+                    params["page"] = page
+                    print(f"    {params}")
+                if query.fetch_all:
+                    print("    ... fetch_all=true, will continue until hh.ru pages are exhausted")
+            elif query.source == "remoteok":
+                print(f"    {{'endpoint': '/api', 'query_filter': {query.text!r}}}")
+            else:
+                print("    source adapter placeholder only")
         return 0
 
     storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
     storage.init_db()
-    adapter = build_hh_adapter(settings)
-    total, _ = fetch_search_queries(adapter, queries, profile=profile, storage=storage)
-    print(f"Total fetched and saved from hh.ru profile queries: {total}")
+    adapters = build_adapter_registry(settings)
+    total, _, details = fetch_search_queries(adapters, queries, profile=profile, storage=storage)
+    for query, fetched, saved in details:
+        print(f"{query.source}:{query.name}: fetched {fetched} vacancies, saved {saved}")
+    print(f"Total fetched and saved from configured profile queries: {total}")
     return 0
 
 
@@ -345,11 +380,25 @@ def _hydrate_ranked_vacancies(
     if not ranked:
         return ranked
 
-    adapter = build_hh_adapter(settings) if client is None else SimpleNamespace(fetch_details=client.get_vacancy, source_name="hh")
+    if client is not None:
+        from hh_monitor.normalization import vacancy_from_payload
+
+        class InlineHHAdapter:
+            source_name = "hh"
+
+            def fetch_details(self, external_id: str):
+                return client.get_vacancy(external_id)
+
+            def normalize(self, raw_item, raw_details=None):
+                return vacancy_from_payload(raw_details or raw_item, source=raw_item.get("source", "hh_api:test"))
+
+        adapters = {"hh": InlineHHAdapter()}
+    else:
+        adapters = build_adapter_registry(settings)
     profile = load_profile(config_path)
     return pipeline_hydrate_ranked_vacancies(
         ranked,
-        adapter=adapter,
+        adapters=adapters,
         storage=storage,
         profile=profile,
         excluded=excluded,
@@ -574,10 +623,14 @@ def main(argv: list[str] | None = None) -> int:
         return import_json_command(args)
     if args.command == "fetch-hh":
         return fetch_hh_command(args)
+    if args.command == "fetch-remoteok":
+        return fetch_remoteok_command(args)
     if args.command == "list-searches":
         return list_searches_command(args)
+    if args.command == "fetch-profile":
+        return fetch_profile_command(args)
     if args.command == "fetch-hh-profile":
-        return fetch_hh_profile_command(args)
+        return fetch_profile_command(args)
     if args.command == "rank":
         return rank_command(args)
     if args.command == "mark":

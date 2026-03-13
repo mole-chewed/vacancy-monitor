@@ -224,6 +224,7 @@ class UiApplicationEntry:
 
 @dataclass(frozen=True)
 class SearchQuery:
+    source: str
     name: str
     text: str
     priority: int = 100

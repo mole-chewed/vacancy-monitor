@@ -50,6 +50,7 @@ negative = ["cpo", "chief product officer", "head of product", "product manager"
 
 [search.ai_primary]
 enabled = true
+source = "hh"
 priority = 20
 label = "AI Primary"
 text = "((GenAI OR AI OR LLM OR RAG OR \"AI platform\" OR \"AI systems\" OR \"AI automation\") AND (backend OR integrations OR API OR platform))"
@@ -63,6 +64,7 @@ order_by = "publication_time"
 
 [search.ai_transition]
 enabled = true
+source = "hh"
 priority = 30
 label = "AI Transition"
 text = "((LLM OR RAG OR embeddings OR vector OR automation OR agents) AND (backend OR python OR integrations OR platform))"
@@ -75,6 +77,7 @@ order_by = "publication_time"
 
 [search.ruby_primary]
 enabled = true
+source = "hh"
 priority = 10
 label = "Ruby Primary"
 text = "((Ruby OR \"Ruby on Rails\" OR Rails OR RoR) AND (backend OR API OR PostgreSQL OR Sidekiq))"
@@ -84,3 +87,23 @@ fetch_all = true
 schedule = "remote"
 detailed = false
 order_by = "publication_time"
+
+[search.remoteok_ruby_primary]
+enabled = true
+source = "remoteok"
+priority = 15
+label = "RemoteOK Ruby Primary"
+text = "((Ruby OR \"Ruby on Rails\" OR Rails OR RoR) AND (backend OR API OR PostgreSQL OR Sidekiq))"
+per_page = 100
+pages = 1
+fetch_all = true
+
+[search.remoteok_ai_transition]
+enabled = true
+source = "remoteok"
+priority = 25
+label = "RemoteOK AI Transition"
+text = "((LLM OR RAG OR OpenAI OR Anthropic OR GenAI) AND (backend OR integrations OR API OR platform))"
+per_page = 100
+pages = 1
+fetch_all = true

@@ -1,13 +1,13 @@
-# hh.ru Vacancy Monitor MVP
+# Multi-Source Vacancy Monitor
 
-Python CLI application for importing hh.ru vacancies, classifying them into AI / Ruby / Other tracks, scoring them with AI-first priority, excluding already-applied roles, and saving results locally in SQLite.
+Python CLI application for importing vacancies from multiple sources, normalizing them into one schema, ranking Ruby-first, excluding already-applied roles, and saving results locally in SQLite.
 
 ## Why this shape
 
 - Deterministic first: explicit rules drive track classification and ranking.
 - SQLite first: local, simple, and enough for an MVP with application history.
 - CLI first: easier to iterate on ingestion, scoring, and manual review.
-- Extensible: optional LLM summary can be added later without replacing core logic.
+- Extensible: source adapters isolate collection logic so new platforms can be added without rewriting ranking/storage.
 
 ## Architecture
 
@@ -15,18 +15,24 @@ Core modules:
 
 - `config.py`: loads TOML profile config and environment variables
 - `models.py`: typed domain models and enums
+- `adapters/`: source adapters (`hh`, `remoteok`, future placeholders like `linkedin`)
 - `keywords.py`: Russian and English keyword dictionaries
 - `normalization.py`: salary, work format, seniority, skills, and text normalization
 - `classifier.py`: AI / Ruby / Other track decision
 - `scoring.py`: fit scoring with AI-first ranking bands
+- `ranking.py`: source-agnostic ranked list construction
+- `pipeline.py`: source adapter registry and multi-source orchestration
 - `storage.py`: SQLite schema, persistence, application history, ranking runs
 - `sources/hh_api.py`: hh.ru search ingestion
+- `sources/remoteok_api.py`: Remote OK public API ingestion
 - `sources/json_import.py`: local JSON / JSONL ingestion
 - `cli.py`: user-facing commands
 
 Public API boundary today:
 
 - supported: public hh.ru vacancy search and vacancy details
+- supported: public Remote OK job feed
+- placeholder only: LinkedIn adapter exists but collection is intentionally not implemented in this iteration
 - not yet supported: account-specific data sync
 - supported fallback: import applied-history from saved hh.ru UI HTML or exported JSON
 - future fallback: add optional browser automation only for gaps that require live session control
@@ -64,13 +70,14 @@ Public API boundary today:
     └── test_storage.py
 ```
 
-## MVP commands
+## Main Commands
 
 ```bash
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db init-db
 PYTHONPATH=src python -m hh_monitor.cli list-searches
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-hh-profile
+PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-hh --text "GenAI backend"
+PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-remoteok --text "Ruby Rails backend"
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db import-ui-history --input data/sample_hh_responses.html
 PYTHONPATH=src python -m hh_monitor.cli export-ui-history --url "https://hh.ru/applicant/negotiations" --output data/hh_responses_live.html --import-status applied
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db export-my-applications --output data/hh_applied_history.html --import-status applied
@@ -91,7 +98,7 @@ Run the application in this order when you want fresh data and a new report:
 PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db init-db
 ```
 
-2. Inspect the profile-driven hh.ru public API searches:
+2. Inspect the configured multi-source searches:
 
 ```bash
 PYTHONPATH=src python3 -m hh_monitor.cli list-searches
@@ -105,15 +112,22 @@ PYTHONPATH=src python3 -m hh_monitor.cli list-searches
 130438587
 ```
 
-4. Pull fresh vacancies from hh.ru public API using the configured profile searches:
+4. Pull fresh vacancies from all configured source adapters:
 
 ```bash
-PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db fetch-hh-profile
+PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile
 ```
 
-This now fetches all hh.ru result pages for the configured profile searches, not just the first 40 vacancies per direction.
-The shipped profile uses `fetch_all = true`, `per_page = 100`, and avoids per-vacancy detail requests on the broad search stage to reduce captcha/rate-limit issues.
-After that, the `report` command performs a second-stage hydration for the top shortlist and fetches full vacancy details only for those likely finalists.
+This now runs every `[search.*]` block from `config/profile.toml`.
+The shipped profile includes:
+
+- hh.ru Ruby queries
+- hh.ru AI queries
+- Remote OK Ruby queries
+- Remote OK AI transition queries
+
+HH queries can exhaust all result pages. Remote OK currently loads the public feed once and applies the configured query text locally.
+After that, the `report` command performs a second-stage hydration for shortlisted vacancies where the adapter supports detail fetches.
 
 5. Refresh your already-applied vacancies from hh.ru UI so they are excluded from ranking:
 
@@ -139,9 +153,12 @@ PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db report \
 
 Notes about this flow:
 
-- `fetch-hh-profile` pulls vacancies from hh.ru public API using the search groups in `config/profile.toml`
+- `fetch-profile` pulls vacancies from every configured source adapter using the search groups in `config/profile.toml`
+- `fetch-hh-profile` remains as a compatibility alias, but it now routes through the same multi-source fetch pipeline
+- `fetch-remoteok` allows ad hoc Remote OK imports without editing the profile
 - vacancy ids listed in `config/ignored_vacancy_ids.txt` are skipped during import and excluded from ranking/report even if they already exist in SQLite
-- the broad hh.ru profile searches now exhaust all result pages instead of stopping at `pages = 2`
+- the broad hh.ru profile searches exhaust all result pages instead of stopping at `pages = 2`
+- the Remote OK adapter keeps source collection public and deterministic; it does not scrape browser pages
 - `export-my-applications` updates local application history from the hh.ru UI and excludes those vacancies from later ranking
 - `report` does not pull fresh hh.ru data itself; it works from the local SQLite DB and sends prepared evidence to OpenAI
 - the report now uses only remote vacancies and only AI/Ruby-track vacancies before sending them to OpenAI
@@ -161,7 +178,7 @@ Copy `config/profile.example.toml` to `config/profile.toml` and adjust:
 - remote / location preferences
 - keyword weights
 - salary expectations
-- hh.ru public API search groups under `[search.*]`
+- multi-source search groups under `[search.*]`
 - local ignored vacancy ids file under `[files].ignored_vacancy_ids_path`
 
 Environment variables live in `.env`.
@@ -169,12 +186,14 @@ Environment variables live in `.env`.
 The example profile already defines:
 
 - `ruby_primary`
+- `remoteok_ruby_primary`
 - `ai_primary`
+- `remoteok_ai_transition`
 - `ai_transition`
 - `hh.applicant_history_url`
 - `files.ignored_vacancy_ids_path`
 
-Those are fetched in priority order via `fetch-hh-profile`.
+Those are fetched in priority order via `fetch-profile`.
 
 The repository includes:
 

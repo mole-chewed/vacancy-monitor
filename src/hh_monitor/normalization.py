@@ -118,3 +118,60 @@ def vacancy_from_payload(payload: dict[str, Any], source: str = "json_import") -
         normalized_text=normalize_for_match(combined_text),
         source_metadata=payload,
     )
+
+
+def vacancy_from_remoteok_payload(payload: dict[str, Any], source: str = "remoteok_api") -> NormalizedVacancy:
+    title = normalize_text(payload.get("position") or payload.get("title"))
+    company = normalize_text(payload.get("company"))
+    location = normalize_text(payload.get("location") or payload.get("candidate_required_location") or "Remote")
+    tags = [normalize_text(tag) for tag in (payload.get("tags") or []) if normalize_text(str(tag))]
+    description = normalize_text(payload.get("description"))
+    requirements = " ".join(tags)
+    job_id = payload.get("id") or payload.get("slug") or payload.get("url") or title
+    published_at = normalize_text(payload.get("date") or payload.get("iso_date")) or None
+    url = payload.get("url") or payload.get("apply_url")
+    if isinstance(url, str) and url.startswith("/"):
+        url = f"https://remoteok.com{url}"
+
+    salary_from = payload.get("salary_min")
+    salary_to = payload.get("salary_max")
+    salary_currency = None
+    if salary_from is None and payload.get("salary"):
+        salary_text = str(payload["salary"])
+        salary_currency = "USD" if "$" in salary_text else None
+    combined_text = " ".join(
+        part
+        for part in [
+            title,
+            company,
+            location,
+            description,
+            requirements,
+            " ".join(tags),
+        ]
+        if part
+    )
+
+    return NormalizedVacancy(
+        external_id=f"remoteok:{job_id}",
+        source=source,
+        title=title or "Unknown title",
+        company=company or "Unknown company",
+        url=url,
+        location=location or "Remote",
+        remote_type=detect_work_format("remote", location, description, requirements),
+        employment_type=normalize_text(payload.get("employment_type") or "Unknown"),
+        salary_from=int(salary_from) if isinstance(salary_from, int) else None,
+        salary_to=int(salary_to) if isinstance(salary_to, int) else None,
+        salary_currency=salary_currency,
+        salary_gross=None,
+        published_at=published_at,
+        description_raw=description,
+        requirements=requirements,
+        skills_raw=tags,
+        language_requirements=[],
+        seniority=classify_seniority(title, requirements),
+        track=VacancyTrack.OTHER,
+        normalized_text=normalize_for_match(combined_text),
+        source_metadata=payload,
+    )

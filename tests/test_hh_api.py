@@ -70,6 +70,7 @@ class HeadHunterClientTestCase(unittest.TestCase):
 
         vacancies = client.search_vacancies_by_query(
             SearchQuery(
+                source="hh",
                 name="ai_primary",
                 text="LLM backend",
                 priority=10,
@@ -152,7 +153,7 @@ class HeadHunterClientTestCase(unittest.TestCase):
         client.session = session
 
         vacancies = client.search_vacancies_by_query(
-            SearchQuery(name="ai_primary", text="LLM backend", priority=10, per_page=100, fetch_all=True, detailed=False)
+            SearchQuery(source="hh", name="ai_primary", text="LLM backend", priority=10, per_page=100, fetch_all=True, detailed=False)
         )
 
         self.assertEqual([vacancy.external_id for vacancy in vacancies], ["101", "102", "103"])
@@ -183,7 +184,7 @@ class HeadHunterClientTestCase(unittest.TestCase):
         client.session = session
 
         vacancies = client.search_vacancies_by_query(
-            SearchQuery(name="ai_primary", text="LLM backend", priority=10, pages=1, detailed=True)
+            SearchQuery(source="hh", name="ai_primary", text="LLM backend", priority=10, pages=1, detailed=True)
         )
 
         self.assertEqual(len(vacancies), 1)
@@ -195,7 +196,7 @@ class HeadHunterClientTestCase(unittest.TestCase):
         client.session = session
 
         with self.assertRaises(HeadHunterApiError):
-            client.search_vacancies_by_query(SearchQuery(name="ai_primary", text="LLM backend", priority=10))
+            client.search_vacancies_by_query(SearchQuery(source="hh", name="ai_primary", text="LLM backend", priority=10))
 
 
 if __name__ == "__main__":

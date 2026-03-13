@@ -35,6 +35,7 @@ class HeadHunterClient:
         detailed: bool = False,
     ) -> list[Vacancy]:
         query = SearchQuery(
+            source="hh",
             name="ad_hoc",
             text=text,
             per_page=per_page,

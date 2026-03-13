@@ -4,16 +4,26 @@ from typing import Any
 
 from hh_monitor.adapters.base import BaseAdapter
 from hh_monitor.models import NormalizedVacancy, SearchQuery
+from hh_monitor.normalization import vacancy_from_remoteok_payload
+from hh_monitor.sources.remoteok_api import RemoteOkClient
 
 
 class RemoteOkAdapter(BaseAdapter):
     source_name = "remoteok"
 
+    def __init__(self, client: RemoteOkClient) -> None:
+        self.client = client
+
     def search(self, query: SearchQuery, **kwargs: Any) -> list[NormalizedVacancy]:
-        raise NotImplementedError("RemoteOK adapter is a placeholder. Collection is not implemented in this iteration.")
+        raw_jobs = self.client.search_jobs(query.text)
+        return [self.normalize({**item, "_query_name": query.name}) for item in raw_jobs]
 
     def fetch_details(self, external_id: str) -> dict[str, Any]:
-        raise NotImplementedError("RemoteOK adapter is a placeholder. Detail fetching is not implemented.")
+        return self.client.get_job(external_id)
 
     def normalize(self, raw_item: dict[str, Any], raw_details: dict[str, Any] | None = None) -> NormalizedVacancy:
-        raise NotImplementedError("RemoteOK adapter is a placeholder. Normalization is not implemented.")
+        source_query = raw_item.get("_query_name") if isinstance(raw_item, dict) else None
+        payload = dict(raw_details or raw_item)
+        if source_query:
+            payload["_query_name"] = source_query
+        return vacancy_from_remoteok_payload(payload, source=f"{self.source_name}_api:{source_query or 'search'}")
