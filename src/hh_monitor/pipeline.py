@@ -6,11 +6,13 @@ from hh_monitor.adapters.base import BaseAdapter
 from hh_monitor.adapters.hh_adapter import HHAdapter
 from hh_monitor.adapters.linkedin_adapter import LinkedInAdapter
 from hh_monitor.adapters.remoteok_adapter import RemoteOkAdapter
-from hh_monitor.config import CandidateProfile
+from hh_monitor.adapters.weworkremotely_adapter import WeWorkRemotelyAdapter
+from hh_monitor.config import CandidateProfile, source_family, vacancy_is_ignored
 from hh_monitor.models import ApplicationStatus, RankedVacancy, SearchQuery
 from hh_monitor.ranking import build_ranked_vacancies
 from hh_monitor.sources.hh_api import HeadHunterApiError, HeadHunterClient
 from hh_monitor.sources.remoteok_api import RemoteOkApiError, RemoteOkClient
+from hh_monitor.sources.weworkremotely_api import WeWorkRemotelyClient
 from hh_monitor.storage import Storage
 
 
@@ -32,19 +34,14 @@ def build_adapter_registry(settings) -> dict[str, BaseAdapter]:
                 user_agent=getattr(settings, "remoteok_user_agent", settings.hh_user_agent),
             )
         ),
+        "weworkremotely": WeWorkRemotelyAdapter(
+            WeWorkRemotelyClient(
+                base_url=getattr(settings, "weworkremotely_base_url", "https://weworkremotely.com"),
+                user_agent=getattr(settings, "weworkremotely_user_agent", settings.hh_user_agent),
+            )
+        ),
         "linkedin": LinkedInAdapter(),
     }
-
-
-def source_family(source_name: str) -> str:
-    prefix = source_name.split(":", 1)[0]
-    if prefix.endswith("_api"):
-        prefix = prefix[: -len("_api")]
-    if prefix.startswith("hh"):
-        return "hh"
-    return prefix
-
-
 def fetch_search_queries(
     adapters: dict[str, BaseAdapter],
     queries: list[SearchQuery],
@@ -55,12 +52,11 @@ def fetch_search_queries(
     total_saved = 0
     collected = []
     details: list[tuple[SearchQuery, int, int]] = []
-    ignored = profile.ignored_vacancy_ids
     for query in queries:
         adapter = adapters.get(query.source)
         if adapter is None:
             raise RuntimeError(f"Source adapter is not configured: {query.source}")
-        vacancies = [vacancy for vacancy in adapter.search(query) if vacancy.external_id not in ignored]
+        vacancies = [vacancy for vacancy in adapter.search(query) if not vacancy_is_ignored(profile, vacancy)]
         collected.extend(vacancies)
         saved = storage.upsert_vacancies(vacancies) if storage is not None else len(vacancies)
         total_saved += saved

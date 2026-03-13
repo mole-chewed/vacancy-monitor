@@ -1,0 +1,1 @@
+# Put one hh.ru vacancy id per line.

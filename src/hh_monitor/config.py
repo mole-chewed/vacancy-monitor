@@ -63,6 +63,7 @@ class CandidateProfile:
     applicant_history_url: str | None
     ignored_vacancy_ids_path: str | None
     ignored_vacancy_ids: frozenset[str]
+    ignored_vacancy_ids_by_source: dict[str, frozenset[str]]
     preferences: CandidatePreferences
     salary: SalaryExpectation
     weights: ScoringWeights
@@ -80,6 +81,8 @@ class AppSettings:
     hh_api_token: str | None
     remoteok_api_base_url: str
     remoteok_user_agent: str
+    weworkremotely_base_url: str
+    weworkremotely_user_agent: str
     openai_api_key: str | None
     openai_report_model: str
 
@@ -122,6 +125,12 @@ def load_settings(env_path: str | Path = ".env") -> AppSettings:
         or "https://remoteok.com",
         remoteok_user_agent=_env_get("REMOTEOK_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file)
         or "hh-positions-validation/0.1 (+local-cli)",
+        weworkremotely_base_url=_env_get("WEWORKREMOTELY_BASE_URL", "https://weworkremotely.com", env_file)
+        or "https://weworkremotely.com",
+        weworkremotely_user_agent=_env_get(
+            "WEWORKREMOTELY_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file
+        )
+        or "hh-positions-validation/0.1 (+local-cli)",
         openai_api_key=_env_get("OPENAI_API_KEY", None, env_file),
         openai_report_model=_env_get("OPENAI_REPORT_MODEL", "gpt-5", env_file) or "gpt-5",
     )
@@ -142,7 +151,10 @@ def load_profile(config_path: str | Path = "config/profile.toml") -> CandidatePr
     salary = data["salary"]
     weights = data["weights"]
     ignored_vacancy_ids_path = _optional_str(files.get("ignored_vacancy_ids_path")) if isinstance(files, dict) else None
+    ignored_vacancy_ids_dir = _optional_str(files.get("ignored_vacancy_ids_dir")) if isinstance(files, dict) else None
     resolved_ignored_path = _resolve_optional_path(path, ignored_vacancy_ids_path)
+    resolved_ignored_dir = _resolve_optional_path(path, ignored_vacancy_ids_dir)
+    ignored_by_source = _load_vacancy_id_dir(resolved_ignored_dir)
 
     return CandidateProfile(
         name=candidate["name"],
@@ -151,6 +163,7 @@ def load_profile(config_path: str | Path = "config/profile.toml") -> CandidatePr
         applicant_history_url=_optional_str(hh.get("applicant_history_url")) if isinstance(hh, dict) else None,
         ignored_vacancy_ids_path=str(resolved_ignored_path) if resolved_ignored_path is not None else None,
         ignored_vacancy_ids=_load_vacancy_id_file(resolved_ignored_path),
+        ignored_vacancy_ids_by_source=ignored_by_source,
         preferences=CandidatePreferences(
             remote_only=bool(preferences.get("remote_only", preferences.get("remote_preferred", False))),
             remote_preferred=bool(preferences["remote_preferred"]),
@@ -261,6 +274,7 @@ def _load_search_queries(raw_search: object) -> list[SearchQuery]:
                 fetch_all=bool(payload.get("fetch_all", False)),
                 only_with_salary=bool(payload.get("only_with_salary", False)),
                 detailed=bool(payload.get("detailed", False)),
+                source_url=_optional_str(payload.get("source_url")),
                 search_field=_optional_str(payload.get("search_field")),
                 experience=_optional_str(payload.get("experience")),
                 employment=_optional_str(payload.get("employment")),
@@ -292,6 +306,38 @@ def _load_vacancy_id_file(path: Path | None) -> frozenset[str]:
             continue
         vacancy_ids.add(line)
     return frozenset(vacancy_ids)
+
+
+def _load_vacancy_id_dir(path: Path | None) -> dict[str, frozenset[str]]:
+    if path is None or not path.exists() or not path.is_dir():
+        return {}
+    result: dict[str, frozenset[str]] = {}
+    for entry in sorted(path.glob("*.txt")):
+        result[entry.stem.lower()] = _load_vacancy_id_file(entry)
+    return result
+
+
+def source_family(source_name: str) -> str:
+    prefix = source_name.split(":", 1)[0]
+    if prefix.endswith("_api"):
+        prefix = prefix[: -len("_api")]
+    if prefix.endswith("_html"):
+        prefix = prefix[: -len("_html")]
+    if prefix.startswith("hh"):
+        return "hh"
+    return prefix
+
+
+def vacancy_is_ignored(profile: CandidateProfile, vacancy) -> bool:
+    external_id = getattr(vacancy, "external_id", "")
+    source_name = getattr(vacancy, "source", "")
+    if external_id in profile.ignored_vacancy_ids:
+        return True
+    source_ignored = profile.ignored_vacancy_ids_by_source.get(source_family(source_name), frozenset())
+    if not source_ignored:
+        return False
+    raw_id = external_id.split(":", 1)[-1] if ":" in external_id else external_id
+    return external_id in source_ignored or raw_id in source_ignored
 
 
 def _optional_str(value: Any) -> str | None:

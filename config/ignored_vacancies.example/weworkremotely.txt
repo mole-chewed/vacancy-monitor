@@ -1,0 +1,2 @@
+# Put one We Work Remotely job slug per line, for example:
+# onthegosystems-senior-ruby-on-rails-developer-1

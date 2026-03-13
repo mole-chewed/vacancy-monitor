@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime, timezone
 
-from hh_monitor.config import CandidateProfile
+from hh_monitor.config import CandidateProfile, vacancy_is_ignored
 from hh_monitor.models import ApplicationStatus, RankedVacancy, Vacancy, VacancyAnalysis, VacancyTrack
 from hh_monitor.scoring import analyze_vacancy
 
@@ -15,9 +15,8 @@ def build_ranked_vacancies(
     statuses: dict[str, ApplicationStatus],
 ) -> list[RankedVacancy]:
     ranked: list[RankedVacancy] = []
-    ignored = profile.ignored_vacancy_ids
     for vacancy in vacancies:
-        if vacancy.external_id in ignored:
+        if vacancy_is_ignored(profile, vacancy):
             continue
         analysis = analyze_vacancy(vacancy, profile)
         if analysis.track not in {VacancyTrack.RUBY, VacancyTrack.MIXED, VacancyTrack.AI}:

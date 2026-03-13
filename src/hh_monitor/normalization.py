@@ -175,3 +175,38 @@ def vacancy_from_remoteok_payload(payload: dict[str, Any], source: str = "remote
         normalized_text=normalize_for_match(combined_text),
         source_metadata=payload,
     )
+
+
+def vacancy_from_weworkremotely_payload(payload: dict[str, Any], source: str = "weworkremotely_html") -> NormalizedVacancy:
+    title = normalize_text(payload.get("title"))
+    company = normalize_text(payload.get("company"))
+    location = normalize_text(payload.get("location") or "Remote")
+    categories = [normalize_text(item) for item in (payload.get("categories") or []) if normalize_text(str(item))]
+    requirements = " ".join(categories)
+    published_at = normalize_text(payload.get("listed_at")) or None
+    job_id = payload.get("id") or payload.get("url") or title
+    combined_text = " ".join(part for part in [title, company, location, requirements, " ".join(categories)] if part)
+
+    return NormalizedVacancy(
+        external_id=f"weworkremotely:{job_id}",
+        source=source,
+        title=title or "Unknown title",
+        company=company or "Unknown company",
+        url=payload.get("url"),
+        location=location or "Remote",
+        remote_type=detect_work_format("remote", location, requirements),
+        employment_type="Full-Time" if any("full-time" in item.lower() for item in categories) else "Unknown",
+        salary_from=None,
+        salary_to=None,
+        salary_currency=None,
+        salary_gross=None,
+        published_at=published_at,
+        description_raw=requirements,
+        requirements=requirements,
+        skills_raw=categories,
+        language_requirements=[],
+        seniority=classify_seniority(title, requirements),
+        track=VacancyTrack.OTHER,
+        normalized_text=normalize_for_match(combined_text),
+        source_metadata=payload,
+    )

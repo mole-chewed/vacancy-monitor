@@ -16,6 +16,7 @@ applicant_history_url = "https://simferopol.hh.ru/applicant/negotiations"
 
 [files]
 ignored_vacancy_ids_path = "ignored_vacancy_ids.example.txt"
+ignored_vacancy_ids_dir = "ignored_vacancies.example"
 
 [salary]
 currency = "RUR"
@@ -107,3 +108,14 @@ text = "((LLM OR RAG OR OpenAI OR Anthropic OR GenAI) AND (backend OR integratio
 per_page = 100
 pages = 1
 fetch_all = true
+
+[search.weworkremotely_ruby_primary]
+enabled = true
+source = "weworkremotely"
+priority = 12
+label = "We Work Remotely Ruby Primary"
+text = "Ruby on Rails"
+source_url = "https://weworkremotely.com/remote-ruby-on-rails-jobs"
+per_page = 100
+pages = 1
+fetch_all = false

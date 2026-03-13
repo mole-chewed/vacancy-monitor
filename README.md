@@ -25,6 +25,7 @@ Core modules:
 - `storage.py`: SQLite schema, persistence, application history, ranking runs
 - `sources/hh_api.py`: hh.ru search ingestion
 - `sources/remoteok_api.py`: Remote OK public API ingestion
+- `sources/weworkremotely_api.py`: We Work Remotely listing-page ingestion
 - `sources/json_import.py`: local JSON / JSONL ingestion
 - `cli.py`: user-facing commands
 
@@ -32,6 +33,7 @@ Public API boundary today:
 
 - supported: public hh.ru vacancy search and vacancy details
 - supported: public Remote OK job feed
+- supported: We Work Remotely public listing pages
 - placeholder only: LinkedIn adapter exists but collection is intentionally not implemented in this iteration
 - not yet supported: account-specific data sync
 - supported fallback: import applied-history from saved hh.ru UI HTML or exported JSON
@@ -78,6 +80,7 @@ PYTHONPATH=src python -m hh_monitor.cli list-searches
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-hh --text "GenAI backend"
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-remoteok --text "Ruby Rails backend"
+PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-weworkremotely --url "https://weworkremotely.com/remote-ruby-on-rails-jobs"
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db import-ui-history --input data/sample_hh_responses.html
 PYTHONPATH=src python -m hh_monitor.cli export-ui-history --url "https://hh.ru/applicant/negotiations" --output data/hh_responses_live.html --import-status applied
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db export-my-applications --output data/hh_applied_history.html --import-status applied
@@ -104,12 +107,21 @@ PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db init-db
 PYTHONPATH=src python3 -m hh_monitor.cli list-searches
 ```
 
-3. Optionally add vacancy ids you never want to see again to `config/ignored_vacancy_ids.txt`:
+3. Optionally add vacancy ids you never want to see again:
 
 ```text
-# one hh.ru vacancy id per line
+# legacy global list, mostly useful for hh.ru
+# config/ignored_vacancy_ids.txt
 131083362
 130438587
+```
+
+Provider-specific ignore files are also supported under `config/ignored_vacancies/`:
+
+```text
+config/ignored_vacancies/hh.txt
+config/ignored_vacancies/remoteok.txt
+config/ignored_vacancies/weworkremotely.txt
 ```
 
 4. Pull fresh vacancies from all configured source adapters:
@@ -122,11 +134,12 @@ This now runs every `[search.*]` block from `config/profile.toml`.
 The shipped profile includes:
 
 - hh.ru Ruby queries
+- We Work Remotely Ruby queries
 - hh.ru AI queries
 - Remote OK Ruby queries
 - Remote OK AI transition queries
 
-HH queries can exhaust all result pages. Remote OK currently loads the public feed once and applies the configured query text locally.
+HH queries can exhaust all result pages. Remote OK loads the public feed once and applies the configured query text locally. We Work Remotely currently ingests the public Ruby on Rails listing page directly.
 After that, the `report` command performs a second-stage hydration for shortlisted vacancies where the adapter supports detail fetches.
 
 5. Refresh your already-applied vacancies from hh.ru UI so they are excluded from ranking:
@@ -156,9 +169,12 @@ Notes about this flow:
 - `fetch-profile` pulls vacancies from every configured source adapter using the search groups in `config/profile.toml`
 - `fetch-hh-profile` remains as a compatibility alias, but it now routes through the same multi-source fetch pipeline
 - `fetch-remoteok` allows ad hoc Remote OK imports without editing the profile
+- `fetch-weworkremotely` allows ad hoc We Work Remotely imports from a specific listing page URL
 - vacancy ids listed in `config/ignored_vacancy_ids.txt` are skipped during import and excluded from ranking/report even if they already exist in SQLite
+- provider-specific ignore files in `config/ignored_vacancies/*.txt` are applied by source family
 - the broad hh.ru profile searches exhaust all result pages instead of stopping at `pages = 2`
 - the Remote OK adapter keeps source collection public and deterministic; it does not scrape browser pages
+- the We Work Remotely adapter uses the public listing page and currently does not hydrate detail pages
 - `export-my-applications` updates local application history from the hh.ru UI and excludes those vacancies from later ranking
 - `report` does not pull fresh hh.ru data itself; it works from the local SQLite DB and sends prepared evidence to OpenAI
 - the report now uses only remote vacancies and only AI/Ruby-track vacancies before sending them to OpenAI
@@ -180,12 +196,14 @@ Copy `config/profile.example.toml` to `config/profile.toml` and adjust:
 - salary expectations
 - multi-source search groups under `[search.*]`
 - local ignored vacancy ids file under `[files].ignored_vacancy_ids_path`
+- provider-specific ignored vacancy directory under `[files].ignored_vacancy_ids_dir`
 
 Environment variables live in `.env`.
 
 The example profile already defines:
 
 - `ruby_primary`
+- `weworkremotely_ruby_primary`
 - `remoteok_ruby_primary`
 - `ai_primary`
 - `remoteok_ai_transition`
@@ -199,12 +217,21 @@ The repository includes:
 
 - [profile.example.toml](/Users/sashah/p/hh-positions-validation/config/profile.example.toml)
 - [ignored_vacancy_ids.example.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancy_ids.example.txt)
+- [hh.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/hh.txt)
+- [remoteok.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/remoteok.txt)
+- [weworkremotely.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/weworkremotely.txt)
 
 Your local editable ignore file is:
 
 - `config/ignored_vacancy_ids.txt`
 - one vacancy id per line
 - `#` comments are allowed
+
+Provider-specific ignore files can also be added under:
+
+- `config/ignored_vacancies/hh.txt`
+- `config/ignored_vacancies/remoteok.txt`
+- `config/ignored_vacancies/weworkremotely.txt`
 
 ## UI Fallback
 

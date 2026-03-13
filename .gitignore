@@ -16,6 +16,7 @@ venv/
 # Local candidate-specific config
 config/profile.toml
 config/ignored_vacancy_ids.txt
+config/ignored_vacancies/
 
 # Runtime and private exports
 data/*

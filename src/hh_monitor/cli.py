@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 from types import SimpleNamespace
 
-from hh_monitor.config import load_profile, load_settings
+from hh_monitor.config import load_profile, load_settings, vacancy_is_ignored
 from hh_monitor.cv import CvExtractionError, extract_cv_text
 from hh_monitor.models import ApplicationRecord, ApplicationStatus, MatchLabel, RankedVacancy, WorkFormat
 from hh_monitor.openai_reporting import (
@@ -51,6 +51,11 @@ def build_parser() -> argparse.ArgumentParser:
     fetch_remoteok = subparsers.add_parser("fetch-remoteok", help="Fetch vacancies from Remote OK public API")
     fetch_remoteok.add_argument("--text", required=True, help="Search text")
     fetch_remoteok.add_argument("--dry-run", action="store_true", help="Print the configured request without calling Remote OK")
+
+    fetch_wwr = subparsers.add_parser("fetch-weworkremotely", help="Fetch vacancies from We Work Remotely")
+    fetch_wwr.add_argument("--url", required=True, help="Listing page URL")
+    fetch_wwr.add_argument("--text", default="Ruby on Rails", help="Search label text")
+    fetch_wwr.add_argument("--dry-run", action="store_true", help="Print the configured request without calling We Work Remotely")
 
     subparsers.add_parser("list-searches", help="Print configured source queries from profile config")
     fetch_profile = subparsers.add_parser("fetch-profile", help="Fetch vacancies from all configured source adapters")
@@ -263,12 +268,43 @@ def fetch_remoteok_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def fetch_weworkremotely_command(args: argparse.Namespace) -> int:
+    from hh_monitor.models import SearchQuery
+
+    settings = load_settings(args.env_file)
+    configure_logging(settings.log_level)
+    profile = load_profile(args.config)
+    query = SearchQuery(
+        source="weworkremotely",
+        name="ad_hoc",
+        text=args.text,
+        fetch_all=False,
+        pages=1,
+        per_page=100,
+        source_url=args.url,
+    )
+    if args.dry_run:
+        print(f"We Work Remotely request plan for {query.name}:")
+        print({"source": query.source, "url": query.source_url, "query_filter": query.text})
+        return 0
+
+    storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
+    storage.init_db()
+    adapters = build_adapter_registry(settings)
+    inserted, _, _ = fetch_search_queries(adapters, [query], profile=profile, storage=storage)
+    print(f"Fetched and saved {inserted} vacancies from We Work Remotely")
+    return 0
+
+
 def list_searches_command(args: argparse.Namespace) -> int:
     profile = load_profile(args.config)
     if profile.ignored_vacancy_ids_path:
         print(f"Ignored vacancy ids: {len(profile.ignored_vacancy_ids)} | file={profile.ignored_vacancy_ids_path}")
+    if profile.ignored_vacancy_ids_by_source:
+        for source_name, values in sorted(profile.ignored_vacancy_ids_by_source.items()):
+            print(f"Ignored vacancy ids [{source_name}]: {len(values)}")
     if not profile.search_queries:
-        print("No hh.ru search queries configured in profile.")
+        print("No source queries configured in profile.")
         return 0
 
     for query in profile.search_queries:
@@ -289,6 +325,8 @@ def list_searches_command(args: argparse.Namespace) -> int:
             extras.append(f"employment={query.employment}")
         if query.experience:
             extras.append(f"experience={query.experience}")
+        if query.source_url:
+            extras.append(f"source_url={query.source_url}")
         extras.append(f"fetch_all={query.fetch_all}")
         extras.append(f"detailed={query.detailed}")
         extras.append(f"only_with_salary={query.only_with_salary}")
@@ -318,6 +356,8 @@ def fetch_profile_command(args: argparse.Namespace) -> int:
                     print("    ... fetch_all=true, will continue until hh.ru pages are exhausted")
             elif query.source == "remoteok":
                 print(f"    {{'endpoint': '/api', 'query_filter': {query.text!r}}}")
+            elif query.source == "weworkremotely":
+                print(f"    {{'url': {query.source_url!r}, 'query_filter': {query.text!r}}}")
             else:
                 print("    source adapter placeholder only")
         return 0
@@ -343,10 +383,9 @@ def _parse_statuses(raw_statuses: str) -> set[ApplicationStatus]:
 
 
 def _filter_ignored_vacancies(vacancies: list, profile) -> list:
-    if not profile.ignored_vacancy_ids:
+    if not profile.ignored_vacancy_ids and not profile.ignored_vacancy_ids_by_source:
         return vacancies
-    ignored = profile.ignored_vacancy_ids
-    filtered = [vacancy for vacancy in vacancies if vacancy.external_id not in ignored]
+    filtered = [vacancy for vacancy in vacancies if not vacancy_is_ignored(profile, vacancy)]
     skipped = len(vacancies) - len(filtered)
     if skipped:
         LOGGER.info("Skipped %s vacancies from ignored-vacancy file", skipped)
@@ -357,8 +396,8 @@ def _ranked_vacancies(storage: Storage, config_path: str, excluded: set[Applicat
     profile = load_profile(config_path)
     statuses = storage.get_application_statuses()
     vacancies = storage.list_vacancies(exclude_statuses=excluded)
-    if profile.ignored_vacancy_ids:
-        vacancies = [vacancy for vacancy in vacancies if vacancy.external_id not in profile.ignored_vacancy_ids]
+    if profile.ignored_vacancy_ids or profile.ignored_vacancy_ids_by_source:
+        vacancies = [vacancy for vacancy in vacancies if not vacancy_is_ignored(profile, vacancy)]
     if profile.preferences.remote_only:
         vacancies = [vacancy for vacancy in vacancies if vacancy.work_format == WorkFormat.REMOTE]
     return build_ranked_vacancies(vacancies, profile=profile, statuses=statuses)
@@ -625,6 +664,8 @@ def main(argv: list[str] | None = None) -> int:
         return fetch_hh_command(args)
     if args.command == "fetch-remoteok":
         return fetch_remoteok_command(args)
+    if args.command == "fetch-weworkremotely":
+        return fetch_weworkremotely_command(args)
     if args.command == "list-searches":
         return list_searches_command(args)
     if args.command == "fetch-profile":

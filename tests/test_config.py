@@ -8,7 +8,8 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.config import load_profile
+from hh_monitor.config import load_profile, vacancy_is_ignored
+from hh_monitor.normalization import vacancy_from_weworkremotely_payload
 
 
 class ConfigTestCase(unittest.TestCase):
@@ -17,11 +18,20 @@ class ConfigTestCase(unittest.TestCase):
 
         self.assertEqual(
             [query.name for query in profile.search_queries],
-            ["ruby_primary", "remoteok_ruby_primary", "ai_primary", "remoteok_ai_transition", "ai_transition"],
+            [
+                "ruby_primary",
+                "weworkremotely_ruby_primary",
+                "remoteok_ruby_primary",
+                "ai_primary",
+                "remoteok_ai_transition",
+                "ai_transition",
+            ],
         )
         self.assertEqual(profile.search_queries[0].priority, 10)
         self.assertEqual(profile.search_queries[0].source, "hh")
-        self.assertEqual(profile.search_queries[1].source, "remoteok")
+        self.assertEqual(profile.search_queries[1].source, "weworkremotely")
+        self.assertEqual(profile.search_queries[1].source_url, "https://weworkremotely.com/remote-ruby-on-rails-jobs")
+        self.assertEqual(profile.search_queries[2].source, "remoteok")
         self.assertFalse(profile.search_queries[0].detailed)
         self.assertIsNone(profile.search_queries[0].area)
         self.assertTrue(profile.search_queries[0].fetch_all)
@@ -34,6 +44,9 @@ class ConfigTestCase(unittest.TestCase):
         self.assertTrue(profile.preferences.remote_only)
         self.assertTrue(profile.ignored_vacancy_ids_path.endswith("config/ignored_vacancy_ids.example.txt"))
         self.assertEqual(profile.ignored_vacancy_ids, frozenset())
+        self.assertIn("hh", profile.ignored_vacancy_ids_by_source)
+        self.assertIn("remoteok", profile.ignored_vacancy_ids_by_source)
+        self.assertIn("weworkremotely", profile.ignored_vacancy_ids_by_source)
         self.assertEqual(profile.ranking.primary_track.value, "ruby")
         self.assertEqual(profile.ranking.secondary_track.value, "ai")
         self.assertEqual(profile.ranking.primary_track_weight, 1.35)
@@ -44,6 +57,9 @@ class ConfigTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             (temp_path / "ignored_ids.txt").write_text("# comment\n131083362\n130438587\n", encoding="utf-8")
+            ignored_dir = temp_path / "ignored_vacancies"
+            ignored_dir.mkdir()
+            (ignored_dir / "remoteok.txt").write_text("1130651\n", encoding="utf-8")
             (temp_path / "profile.toml").write_text(
                 """
 [candidate]
@@ -61,6 +77,7 @@ long_term_contract_ok = true
 
 [files]
 ignored_vacancy_ids_path = "ignored_ids.txt"
+ignored_vacancy_ids_dir = "ignored_vacancies"
 
 [salary]
 currency = "RUR"
@@ -86,6 +103,67 @@ n8n_penalty = 1
             profile = load_profile(temp_path / "profile.toml")
 
         self.assertEqual(profile.ignored_vacancy_ids, frozenset({"131083362", "130438587"}))
+        self.assertEqual(profile.ignored_vacancy_ids_by_source["remoteok"], frozenset({"1130651"}))
+
+    def test_source_specific_ignore_matches_weworkremotely_html_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            ignored_dir = temp_path / "ignored_vacancies"
+            ignored_dir.mkdir()
+            (ignored_dir / "weworkremotely.txt").write_text("example-role\n", encoding="utf-8")
+            (temp_path / "profile.toml").write_text(
+                """
+[candidate]
+name = "Test"
+summary = "Summary"
+preferred_language = "ru"
+
+[preferences]
+remote_only = true
+remote_preferred = true
+accept_russia = true
+accept_moscow_hybrid = true
+full_time_preferred = true
+long_term_contract_ok = true
+
+[files]
+ignored_vacancy_ids_dir = "ignored_vacancies"
+
+[salary]
+currency = "RUR"
+minimum = 1
+target = 2
+stretch = 3
+
+[weights]
+ai_track_boost = 1
+ruby_track_boost = 1
+remote_bonus = 1
+hybrid_bonus = 1
+onsite_penalty = 1
+python_strong_penalty = 1
+frontend_penalty = 1
+product_penalty = 1
+ml_research_penalty = 1
+n8n_penalty = 1
+                """.strip(),
+                encoding="utf-8",
+            )
+
+            profile = load_profile(temp_path / "profile.toml")
+            vacancy = vacancy_from_weworkremotely_payload(
+                {
+                    "id": "example-role",
+                    "title": "Senior Ruby on Rails Developer",
+                    "company": "Test Co",
+                    "location": "Remote",
+                    "categories": ["Full-Time", "Russian Federation"],
+                    "url": "https://weworkremotely.com/remote-jobs/example-role",
+                },
+                source="weworkremotely_html:test",
+            )
+
+        self.assertTrue(vacancy_is_ignored(profile, vacancy))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,2 @@
+# Put one Remote OK vacancy id per line, for example:
+# 1130651

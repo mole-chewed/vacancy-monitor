@@ -234,6 +234,7 @@ class SearchQuery:
     fetch_all: bool = False
     only_with_salary: bool = False
     detailed: bool = False
+    source_url: str | None = None
     search_field: str | None = None
     experience: str | None = None
     employment: str | None = None
