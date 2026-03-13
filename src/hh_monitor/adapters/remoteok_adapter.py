@@ -10,6 +10,7 @@ from hh_monitor.sources.remoteok_api import RemoteOkClient
 
 class RemoteOkAdapter(BaseAdapter):
     source_name = "remoteok"
+    supports_detail_hydration = True
 
     def __init__(self, client: RemoteOkClient) -> None:
         self.client = client

@@ -98,6 +98,8 @@ def hydrate_ranked_vacancies(
         adapter = adapters.get(family)
         if adapter is None:
             continue
+        if not getattr(adapter, "supports_detail_hydration", False):
+            continue
         try:
             payload = adapter.fetch_details(item.vacancy.external_id)
         except (

@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 from types import SimpleNamespace
 
-from hh_monitor.config import load_profile, load_settings, vacancy_is_ignored
+from hh_monitor.config import load_profile, load_settings, source_family, vacancy_is_ignored
 from hh_monitor.cv import CvExtractionError, extract_cv_text
 from hh_monitor.models import ApplicationRecord, ApplicationStatus, MatchLabel, RankedVacancy, WorkFormat
 from hh_monitor.openai_reporting import (
@@ -69,11 +69,15 @@ def build_parser() -> argparse.ArgumentParser:
     fetch_wwr.add_argument("--dry-run", action="store_true", help="Print the configured request without calling We Work Remotely")
 
     subparsers.add_parser("list-searches", help="Print configured source queries from profile config")
+    parser_list = subparsers.choices["list-searches"]
+    parser_list.add_argument("--source", default=None, help="Only show configured queries for one source family, for example hh")
     fetch_profile = subparsers.add_parser("fetch-profile", help="Fetch vacancies from all configured source adapters")
     fetch_profile.add_argument("--limit-queries", type=int, default=None, help="Only run the first N configured queries")
+    fetch_profile.add_argument("--source", default=None, help="Only run configured queries for one source family, for example hh")
     fetch_profile.add_argument("--dry-run", action="store_true", help="Print configured requests without calling APIs")
     fetch_profile = subparsers.add_parser("fetch-hh-profile", help="Compatibility alias for fetch-profile")
     fetch_profile.add_argument("--limit-queries", type=int, default=None, help="Only run the first N configured queries")
+    fetch_profile.add_argument("--source", default=None, help="Only run configured queries for one source family, for example hh")
     fetch_profile.add_argument("--dry-run", action="store_true", help="Print configured requests without calling hh.ru")
 
     rank = subparsers.add_parser("rank", help="Classify and rank stored vacancies")
@@ -83,6 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="applied,ignore,rejected,interview",
         help="Comma-separated application statuses to exclude from ranking",
     )
+    rank.add_argument("--source", default=None, help="Only rank one source family, for example hh")
 
     mark = subparsers.add_parser("mark", help="Mark vacancy status")
     mark.add_argument("--vacancy-id", required=True, help="Vacancy external id")
@@ -195,6 +200,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="applied,ignore,rejected,interview",
         help="Comma-separated application statuses to exclude from ranking",
     )
+    report.add_argument("--source", default=None, help="Only report on one source family, for example hh")
 
     subparsers.add_parser("history", help="Show application history")
     subparsers.add_parser("show-latest", help="Show latest saved ranking from SQLite")
@@ -366,7 +372,12 @@ def list_searches_command(args: argparse.Namespace) -> int:
         print("No source queries configured in profile.")
         return 0
 
-    for query in profile.search_queries:
+    queries = _filter_queries_by_source(profile.search_queries, args.source)
+    if not queries:
+        print("No source queries match the requested filter.")
+        return 0
+
+    for query in queries:
         print(
             f"{query.priority:>3} | {query.source} | {query.name} | label={query.label} | pages={query.pages} | per_page={query.per_page}"
         )
@@ -401,7 +412,11 @@ def fetch_profile_command(args: argparse.Namespace) -> int:
         print("No search queries configured in profile.", file=sys.stderr)
         return 1
 
-    queries = profile.search_queries[: args.limit_queries] if args.limit_queries else profile.search_queries
+    queries = _filter_queries_by_source(profile.search_queries, args.source)
+    queries = queries[: args.limit_queries] if args.limit_queries else queries
+    if not queries:
+        print("No configured queries match the requested filter.", file=sys.stderr)
+        return 1
     if args.dry_run:
         for query in queries:
             print(f"{query.source}:{query.name} ({query.label}):")
@@ -456,10 +471,31 @@ def _filter_ignored_vacancies(vacancies: list, profile) -> list:
     return filtered
 
 
-def _ranked_vacancies(storage: Storage, config_path: str, excluded: set[ApplicationStatus]) -> list[RankedVacancy]:
+def _filter_queries_by_source(queries, source_name: str | None):
+    if not source_name:
+        return list(queries)
+    normalized = source_name.strip().lower()
+    return [query for query in queries if source_family(query.source) == normalized]
+
+
+def _filter_vacancies_by_source(vacancies, source_name: str | None):
+    if not source_name:
+        return list(vacancies)
+    normalized = source_name.strip().lower()
+    return [vacancy for vacancy in vacancies if source_family(vacancy.source) == normalized]
+
+
+def _ranked_vacancies(
+    storage: Storage,
+    config_path: str,
+    excluded: set[ApplicationStatus],
+    *,
+    source_name: str | None = None,
+) -> list[RankedVacancy]:
     profile = load_profile(config_path)
     statuses = storage.get_application_statuses()
     vacancies = storage.list_vacancies(exclude_statuses=excluded)
+    vacancies = _filter_vacancies_by_source(vacancies, source_name)
     if profile.ignored_vacancy_ids or profile.ignored_vacancy_ids_by_source:
         vacancies = [vacancy for vacancy in vacancies if not vacancy_is_ignored(profile, vacancy)]
     if profile.preferences.remote_only:
@@ -475,11 +511,12 @@ def _hydrate_ranked_vacancies(
     settings,
     limit: int,
     client=None,
+    source_name: str | None = None,
 ) -> list[RankedVacancy]:
     if limit <= 0:
-        return _ranked_vacancies(storage, config_path, excluded)
+        return _ranked_vacancies(storage, config_path, excluded, source_name=source_name)
 
-    ranked = _ranked_vacancies(storage, config_path, excluded)
+    ranked = _ranked_vacancies(storage, config_path, excluded, source_name=source_name)
     if not ranked:
         return ranked
 
@@ -488,6 +525,7 @@ def _hydrate_ranked_vacancies(
 
         class InlineHHAdapter:
             source_name = "hh"
+            supports_detail_hydration = True
 
             def fetch_details(self, external_id: str):
                 return client.get_vacancy(external_id)
@@ -544,7 +582,7 @@ def _print_ranked(items: list[RankedVacancy], top: int) -> None:
 
 def rank_command(args: argparse.Namespace) -> int:
     storage = resolve_storage(args)
-    ranked = _ranked_vacancies(storage, args.config, _parse_statuses(args.exclude_statuses))
+    ranked = _ranked_vacancies(storage, args.config, _parse_statuses(args.exclude_statuses), source_name=args.source)
     if ranked:
         storage.save_ranking_results(ranked)
     _print_ranked(ranked, args.top)
@@ -649,6 +687,7 @@ def report_command(args: argparse.Namespace) -> int:
         excluded=excluded,
         settings=settings,
         limit=args.hydrate_top,
+        source_name=args.source,
     )
     if ranked:
         storage.save_ranking_results(ranked)

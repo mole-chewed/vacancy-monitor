@@ -10,6 +10,7 @@ from hh_monitor.sources.remotive_api import RemotiveClient
 
 class RemotiveAdapter(BaseAdapter):
     source_name = "remotive"
+    supports_detail_hydration = True
 
     def __init__(self, client: RemotiveClient) -> None:
         self.client = client

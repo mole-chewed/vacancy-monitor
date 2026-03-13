@@ -10,6 +10,7 @@ from hh_monitor.sources.hh_api import HeadHunterClient
 
 class HHAdapter(BaseAdapter):
     source_name = "hh"
+    supports_detail_hydration = True
 
     def __init__(self, client: HeadHunterClient) -> None:
         self.client = client

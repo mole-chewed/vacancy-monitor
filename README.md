@@ -82,6 +82,7 @@ Public API boundary today:
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db init-db
 PYTHONPATH=src python -m hh_monitor.cli list-searches
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile
+PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile --source hh
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-hh --text "GenAI backend"
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-jobspresso --text "ruby on rails" --pages 2
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-remotive --text "Ruby"
@@ -92,7 +93,9 @@ PYTHONPATH=src python -m hh_monitor.cli export-ui-history --url "https://hh.ru/a
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db export-my-applications --output data/hh_applied_history.html --import-status applied
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db import-json --input data/sample_vacancies.json
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db rank --top 20
+PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db rank --source hh --top 20
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db report --output data/application_report.md
+PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db report --source hh --output data/application_report.md
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db mark --vacancy-id genai-backend-001 --status applied
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db history
 ```
@@ -138,6 +141,12 @@ config/ignored_vacancies/weworkremotely.txt
 PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile
 ```
 
+To run against one provider only, use `--source`, for example HH.ru only:
+
+```bash
+PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile --source hh
+```
+
 This now runs every `[search.*]` block from `config/profile.toml`.
 The shipped profile includes:
 
@@ -178,6 +187,7 @@ PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db report \
 Notes about this flow:
 
 - `fetch-profile` pulls vacancies from every configured source adapter using the search groups in `config/profile.toml`
+- `fetch-profile --source hh` runs only the HH.ru queries from the profile
 - `fetch-hh-profile` remains as a compatibility alias, but it now routes through the same multi-source fetch pipeline
 - `fetch-remotive` allows ad hoc Remotive imports without editing the profile
 - `fetch-remoteok` allows ad hoc Remote OK imports without editing the profile
@@ -192,7 +202,9 @@ Notes about this flow:
 - the We Work Remotely adapter uses the public listing page and currently does not hydrate detail pages
 - `export-my-applications` updates local application history from the hh.ru UI and excludes those vacancies from later ranking
 - `report` does not pull fresh hh.ru data itself; it works from the local SQLite DB and sends prepared evidence to OpenAI
+- `rank --source hh` and `report --source hh` restrict the shortlist to one provider family when you want to inspect a single source
 - the report now uses only remote vacancies and only AI/Ruby-track vacancies before sending them to OpenAI
+- shortlist hydration now runs only for adapters that explicitly support detail fetching, so providers like We Work Remotely and Jobspresso no longer emit `Failed to hydrate vacancy` warnings during report generation
 - explicit geography restrictions like `US only` or `US or Canada` are penalized so they do not crowd out Russia-compatible remote roles
 - ML research, model-training, computer-vision, diffusion, architect, Python-title-heavy, and automation-only roles are deterministically excluded before report generation
 

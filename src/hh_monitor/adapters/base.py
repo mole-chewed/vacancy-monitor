@@ -8,6 +8,7 @@ from hh_monitor.models import NormalizedVacancy, SearchQuery
 
 class BaseAdapter(ABC):
     source_name: str
+    supports_detail_hydration: bool = False
 
     @abstractmethod
     def search(self, query: SearchQuery, **kwargs: Any) -> list[NormalizedVacancy]:
