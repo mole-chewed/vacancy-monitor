@@ -580,9 +580,24 @@ def _print_ranked(items: list[RankedVacancy], top: int) -> None:
         print("")
 
 
+def _warn_if_history_missing(storage: Storage, excluded: set[ApplicationStatus]) -> None:
+    tracked_statuses = {ApplicationStatus.APPLIED, ApplicationStatus.INTERVIEW, ApplicationStatus.REJECTED, ApplicationStatus.IGNORE}
+    if not (excluded & tracked_statuses):
+        return
+    if storage.application_history_count() > 0:
+        return
+    print(
+        "Warning: application_history is empty, so applied/rejected/interview vacancies cannot be excluded. "
+        "Run export-my-applications against this same --db-path first.",
+        file=sys.stderr,
+    )
+
+
 def rank_command(args: argparse.Namespace) -> int:
     storage = resolve_storage(args)
-    ranked = _ranked_vacancies(storage, args.config, _parse_statuses(args.exclude_statuses), source_name=args.source)
+    excluded = _parse_statuses(args.exclude_statuses)
+    _warn_if_history_missing(storage, excluded)
+    ranked = _ranked_vacancies(storage, args.config, excluded, source_name=args.source)
     if ranked:
         storage.save_ranking_results(ranked)
     _print_ranked(ranked, args.top)
@@ -681,6 +696,7 @@ def report_command(args: argparse.Namespace) -> int:
     storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
     storage.init_db()
     excluded = _parse_statuses(args.exclude_statuses)
+    _warn_if_history_missing(storage, excluded)
     ranked = _hydrate_ranked_vacancies(
         storage,
         config_path=args.config,

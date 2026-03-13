@@ -2,6 +2,8 @@ import unittest
 from pathlib import Path
 import tempfile
 import sys
+from contextlib import redirect_stderr
+import io
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -10,7 +12,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.cli import _hydrate_ranked_vacancies, _ranked_vacancies
+from hh_monitor.cli import _hydrate_ranked_vacancies, _ranked_vacancies, _warn_if_history_missing
 from hh_monitor.config import load_profile
 from hh_monitor.pipeline import hydrate_ranked_vacancies as pipeline_hydrate_ranked_vacancies
 from hh_monitor.models import ApplicationStatus, RankedVacancy, WorkFormat
@@ -215,6 +217,16 @@ class ReportingTestCase(unittest.TestCase):
 
         self.assertEqual(len(hydrated), 1)
         warning_mock.assert_not_called()
+
+    def test_warn_if_history_missing_when_excluding_applied_statuses(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            storage = Storage(Path(temp_dir) / "hh_monitor.db")
+            storage.init_db()
+            stream = io.StringIO()
+            with redirect_stderr(stream):
+                _warn_if_history_missing(storage, {ApplicationStatus.APPLIED})
+
+        self.assertIn("application_history is empty", stream.getvalue())
 
 
 if __name__ == "__main__":

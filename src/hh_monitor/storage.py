@@ -296,6 +296,11 @@ class Storage:
             rows = conn.execute("SELECT vacancy_id, status FROM application_history").fetchall()
         return {row["vacancy_id"]: ApplicationStatus(row["status"]) for row in rows}
 
+    def application_history_count(self) -> int:
+        with self.connect() as conn:
+            row = conn.execute("SELECT COUNT(*) AS count FROM application_history").fetchone()
+        return int(row["count"]) if row is not None else 0
+
     def mark_application(self, record: ApplicationRecord) -> None:
         with self.connect() as conn:
             conn.execute(
