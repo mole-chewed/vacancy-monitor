@@ -52,6 +52,8 @@ class CandidateProfile:
     summary: str
     preferred_language: str
     applicant_history_url: str | None
+    ignored_vacancy_ids_path: str | None
+    ignored_vacancy_ids: frozenset[str]
     preferences: CandidatePreferences
     salary: SalaryExpectation
     weights: ScoringWeights
@@ -119,14 +121,19 @@ def load_profile(config_path: str | Path = "config/profile.toml") -> CandidatePr
     candidate = data["candidate"]
     preferences = data["preferences"]
     hh = data.get("hh", {})
+    files = data.get("files", {})
     salary = data["salary"]
     weights = data["weights"]
+    ignored_vacancy_ids_path = _optional_str(files.get("ignored_vacancy_ids_path")) if isinstance(files, dict) else None
+    resolved_ignored_path = _resolve_optional_path(path, ignored_vacancy_ids_path)
 
     return CandidateProfile(
         name=candidate["name"],
         summary=candidate["summary"],
         preferred_language=candidate.get("preferred_language", "ru"),
         applicant_history_url=_optional_str(hh.get("applicant_history_url")) if isinstance(hh, dict) else None,
+        ignored_vacancy_ids_path=str(resolved_ignored_path) if resolved_ignored_path is not None else None,
+        ignored_vacancy_ids=_load_vacancy_id_file(resolved_ignored_path),
         preferences=CandidatePreferences(
             remote_only=bool(preferences.get("remote_only", preferences.get("remote_preferred", False))),
             remote_preferred=bool(preferences["remote_preferred"]),
@@ -239,6 +246,27 @@ def _load_search_queries(raw_search: object) -> list[SearchQuery]:
 
     queries.sort(key=lambda item: (item.priority, item.name))
     return queries
+
+
+def _resolve_optional_path(config_path: Path, raw_path: str | None) -> Path | None:
+    if not raw_path:
+        return None
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+    return (config_path.parent / path).resolve()
+
+
+def _load_vacancy_id_file(path: Path | None) -> frozenset[str]:
+    if path is None or not path.exists():
+        return frozenset()
+    vacancy_ids: set[str] = set()
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        vacancy_ids.add(line)
+    return frozenset(vacancy_ids)
 
 
 def _optional_str(value: Any) -> str | None:

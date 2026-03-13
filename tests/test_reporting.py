@@ -53,6 +53,24 @@ class ReportingTestCase(unittest.TestCase):
         self.assertTrue(all(item.vacancy.work_format == WorkFormat.REMOTE for item in ranked))
         self.assertNotIn("product-ai-003", {item.vacancy.external_id for item in ranked})
 
+    def test_ranked_vacancies_exclude_ignored_ids_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            storage = Storage(temp_path / "hh_monitor.db")
+            storage.init_db()
+            storage.upsert_vacancies(load_vacancies_from_json("data/sample_vacancies.json"))
+            (temp_path / "ignored_ids.txt").write_text("genai-backend-001\n", encoding="utf-8")
+            (temp_path / "profile.toml").write_text(
+                Path("config/profile.example.toml")
+                .read_text(encoding="utf-8")
+                .replace('ignored_vacancy_ids_path = "ignored_vacancy_ids.example.txt"', 'ignored_vacancy_ids_path = "ignored_ids.txt"'),
+                encoding="utf-8",
+            )
+
+            ranked = _ranked_vacancies(storage, str(temp_path / "profile.toml"), excluded=set())
+
+        self.assertNotIn("genai-backend-001", {item.vacancy.external_id for item in ranked})
+
     def test_hydrate_ranked_vacancies_refreshes_shortlist_details(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             storage = Storage(Path(temp_dir) / "hh_monitor.db")

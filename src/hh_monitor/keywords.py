@@ -14,6 +14,53 @@ AI_TITLE_KEYWORDS = [
     "backend engineer genai",
 ]
 
+HARD_EXCLUDE_TITLE_KEYWORDS = [
+    "machine learning engineer",
+    "ml engineer",
+    "ml-инженер",
+    "ml разработчик",
+    "ml/ai engineer",
+    "applied ml engineer",
+    "nlp engineer",
+    "computer vision engineer",
+    "ai researcher",
+    "research engineer",
+    "deep learning engineer",
+    "машинное обучение",
+    "инженер машинного обучения",
+    "research scientist",
+]
+
+HARD_EXCLUDE_BODY_KEYWORDS = [
+    "model training",
+    "train models",
+    "pytorch",
+    "tensorflow",
+    "fine-tuning llm",
+    "fine tuning llm",
+    "lora",
+    "qlora",
+    "rlhf",
+    "diffusion model",
+    "diffusion models",
+    "stable diffusion",
+    "recommendation model training",
+    "image generation pipeline",
+    "image generation pipelines",
+    "computer vision pipeline",
+    "computer vision pipelines",
+    "computer vision",
+    "comfyui",
+    "video pipeline",
+    "video pipelines",
+    "ar pipeline",
+    "ar pipelines",
+    "cv pipeline",
+    "обучение моделей",
+    "дообучение llm",
+    "компьютерное зрение",
+]
+
 AI_GENERAL_KEYWORDS = [
     "ai",
     "llm",
@@ -61,6 +108,35 @@ AUTOMATION_KEYWORDS = [
     "оркестраци",
 ]
 
+AUTOMATION_ONLY_KEYWORDS = [
+    "n8n",
+    "zapier",
+    "make.com",
+    "make automation",
+    "no-code",
+    "low-code",
+    "workflow automation",
+    "business automation",
+]
+
+ARCHITECT_KEYWORDS = [
+    "architect",
+    "solution architect",
+    "solutions architect",
+    "architecte",
+    "архитектор",
+    "архитектор решений",
+]
+
+PYTHON_TITLE_KEYWORDS = [
+    "python developer",
+    "python engineer",
+    "python разработчик",
+    "senior python",
+    "python backend developer",
+    "python programmer",
+]
+
 RUBY_KEYWORDS = [
     "ruby",
     "ruby on rails",
@@ -105,6 +181,7 @@ PRODUCT_KEYWORDS = [
     "program manager",
     "delivery manager",
     "head of ai product",
+    "ai product",
     "roadmap",
     "stakeholder",
     "go-to-market",
@@ -114,6 +191,7 @@ PRODUCT_KEYWORDS = [
     "руководитель продукта",
     "руководитель проектов",
     "руководитель проекта",
+    "руководитель ai-автоматизации",
     "менеджер продукта",
     "product management",
     "продуктовая стратегия",
@@ -133,6 +211,9 @@ ORG_LEADERSHIP_KEYWORDS = [
 
 FRONTEND_KEYWORDS = [
     "frontend",
+    "fullstack",
+    "full stack",
+    "full-stack",
     "react",
     "typescript",
     "next.js",

@@ -3,7 +3,7 @@ from __future__ import annotations
 from hh_monitor.classifier import classify_vacancy
 from hh_monitor.config import CandidateProfile
 from hh_monitor.models import MatchLabel, RecommendedAction, Vacancy, VacancyAnalysis, VacancyTrack, WorkFormat
-from hh_monitor.summaries import build_cover_letter_outline, build_expected_salary, build_summary_ru
+from hh_monitor.summaries import build_expected_salary, build_summary_ru
 
 
 def _clamp_score(value: int) -> int:
@@ -171,6 +171,12 @@ def analyze_vacancy(vacancy: Vacancy, profile: CandidateProfile) -> VacancyAnaly
     if "n8n-production-heavy" in assessment.red_flags:
         score -= profile.weights.n8n_penalty
         concerns.append("n8n/LangChain-heavy production requirement may narrow fit")
+    if "automation-only" in assessment.red_flags:
+        score -= 30
+        concerns.append("role looks automation-only without enough backend engineering depth")
+    if "hard-excluded-ml-research" in assessment.red_flags:
+        score = 0
+        concerns.append("role is centered on ML research, training, computer vision, or diffusion pipelines")
 
     score = _clamp_score(score)
     label = _label_for_track(
@@ -206,7 +212,6 @@ def analyze_vacancy(vacancy: Vacancy, profile: CandidateProfile) -> VacancyAnaly
         matched_keywords=assessment.matched_keywords,
         red_flags=assessment.red_flags,
         expected_salary=expected_salary,
-        cover_letter_outline=build_cover_letter_outline(assessment.track, vacancy),
         summary_ru="",
     )
 
@@ -222,7 +227,6 @@ def analyze_vacancy(vacancy: Vacancy, profile: CandidateProfile) -> VacancyAnaly
         matched_keywords=provisional.matched_keywords,
         red_flags=provisional.red_flags,
         expected_salary=provisional.expected_salary,
-        cover_letter_outline=provisional.cover_letter_outline,
         summary_ru=build_summary_ru(vacancy, provisional),
         generated_at=provisional.generated_at,
     )

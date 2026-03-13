@@ -6,7 +6,6 @@ from pathlib import Path
 import sys
 
 from hh_monitor.config import load_profile, load_settings
-from hh_monitor.cover_letters import build_cover_letter_filename, build_cover_letter_ru
 from hh_monitor.cv import CvExtractionError, extract_cv_text
 from hh_monitor.models import ApplicationRecord, ApplicationStatus, MatchLabel, RankedVacancy, VacancyTrack, WorkFormat
 from hh_monitor.openai_reporting import (
@@ -172,16 +171,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Comma-separated application statuses to exclude from ranking",
     )
 
-    cover_letters = subparsers.add_parser("draft-cover-letters", help="Generate Russian cover letters for vacancy ids")
-    cover_letters.add_argument(
-        "--vacancy-id",
-        dest="vacancy_ids",
-        action="append",
-        required=True,
-        help="Vacancy external id. Repeat the flag for multiple vacancies.",
-    )
-    cover_letters.add_argument("--output-dir", default="data/cover_letters", help="Directory for generated markdown files")
-
     subparsers.add_parser("history", help="Show application history")
     subparsers.add_parser("show-latest", help="Show latest saved ranking from SQLite")
 
@@ -206,7 +195,8 @@ def resolve_storage(args: argparse.Namespace) -> Storage:
 
 def import_json_command(args: argparse.Namespace) -> int:
     storage = resolve_storage(args)
-    vacancies = load_vacancies_from_json(args.input, source=args.source)
+    profile = load_profile(args.config)
+    vacancies = _filter_ignored_vacancies(load_vacancies_from_json(args.input, source=args.source), profile)
     inserted = storage.upsert_vacancies(vacancies)
     print(f"Imported {inserted} vacancies from {args.input}")
     return 0
@@ -218,6 +208,7 @@ def fetch_hh_command(args: argparse.Namespace) -> int:
 
     settings = load_settings(args.env_file)
     configure_logging(settings.log_level)
+    profile = load_profile(args.config)
     query = SearchQuery(
         name="ad_hoc",
         text=args.text,
@@ -242,7 +233,7 @@ def fetch_hh_command(args: argparse.Namespace) -> int:
         user_agent=settings.hh_user_agent,
         api_token=settings.hh_api_token,
     )
-    vacancies = client.search_vacancies_by_query(query)
+    vacancies = _filter_ignored_vacancies(client.search_vacancies_by_query(query), profile)
     inserted = storage.upsert_vacancies(vacancies)
     print(f"Fetched and saved {inserted} vacancies from hh.ru")
     return 0
@@ -250,6 +241,8 @@ def fetch_hh_command(args: argparse.Namespace) -> int:
 
 def list_searches_command(args: argparse.Namespace) -> int:
     profile = load_profile(args.config)
+    if profile.ignored_vacancy_ids_path:
+        print(f"Ignored vacancy ids: {len(profile.ignored_vacancy_ids)} | file={profile.ignored_vacancy_ids_path}")
     if not profile.search_queries:
         print("No hh.ru search queries configured in profile.")
         return 0
@@ -312,10 +305,11 @@ def fetch_hh_profile_command(args: argparse.Namespace) -> int:
 
     total = 0
     for query in queries:
-        vacancies = client.search_vacancies_by_query(query)
+        fetched = client.search_vacancies_by_query(query)
+        vacancies = _filter_ignored_vacancies(fetched, profile)
         inserted = storage.upsert_vacancies(vacancies)
         total += inserted
-        print(f"{query.name}: fetched {len(vacancies)} vacancies, saved {inserted}")
+        print(f"{query.name}: fetched {len(fetched)} vacancies, saved {inserted}")
     print(f"Total fetched and saved from hh.ru profile queries: {total}")
     return 0
 
@@ -330,10 +324,95 @@ def _parse_statuses(raw_statuses: str) -> set[ApplicationStatus]:
     return statuses
 
 
+def _filter_ignored_vacancies(vacancies: list, profile) -> list:
+    if not profile.ignored_vacancy_ids:
+        return vacancies
+    ignored = profile.ignored_vacancy_ids
+    filtered = [vacancy for vacancy in vacancies if vacancy.external_id not in ignored]
+    skipped = len(vacancies) - len(filtered)
+    if skipped:
+        LOGGER.info("Skipped %s vacancies from ignored-vacancy file", skipped)
+    return filtered
+
+
+def _should_keep_ranked_vacancy(item: RankedVacancy) -> bool:
+    analysis = item.analysis
+    title = item.vacancy.title.lower()
+    red_flags = set(analysis.red_flags)
+
+    hard_skip_red_flags = {
+        "hard-excluded-ml-research",
+        "automation-only",
+        "architect-heavy",
+        "frontend-heavy",
+        "product-heavy",
+        "org-leadership-heavy",
+        "data-science-heavy",
+        "qa-heavy",
+        "legacy-stack-heavy",
+        "education-heavy",
+        "evangelist-heavy",
+        "strong-python-background-required",
+    }
+    if red_flags & hard_skip_red_flags:
+        return False
+
+    if analysis.track == VacancyTrack.AI:
+        title_exclusions = [
+            "python",
+            "analyst",
+            "аналитик",
+            "rpa",
+            "no-code",
+            "no code",
+            "no - code",
+            "low-code",
+            "low code",
+            "low - code",
+            "automation",
+            "автоматизац",
+            "automation specialist",
+            "automation lead",
+            "руководитель",
+            "tech lead",
+            "lead ",
+            "fullstack",
+            "full stack",
+        ]
+        if any(term in title for term in title_exclusions):
+            return False
+
+        backend_terms = set(analysis.matched_keywords.get("backend", []))
+        backend_focused_title_terms = [
+            "backend",
+            "back-end",
+            "platform",
+            "integration",
+            "integrations",
+            "api",
+            "бэкенд",
+            "интеграц",
+            "llm integration",
+            "ai backend",
+            "genai engineer",
+            "llm engineer",
+            "rag engineer",
+        ]
+        if backend_terms:
+            return True
+        if any(term in title for term in backend_focused_title_terms):
+            return True
+        return False
+
+    return True
+
+
 def _ranked_vacancies(storage: Storage, config_path: str, excluded: set[ApplicationStatus]) -> list[RankedVacancy]:
     profile = load_profile(config_path)
     statuses = storage.get_application_statuses()
     vacancies = storage.list_vacancies(exclude_statuses=excluded)
+    if profile.ignored_vacancy_ids:
+        vacancies = [vacancy for vacancy in vacancies if vacancy.external_id not in profile.ignored_vacancy_ids]
     if profile.preferences.remote_only:
         vacancies = [vacancy for vacancy in vacancies if vacancy.work_format == WorkFormat.REMOTE]
     ranked: list[RankedVacancy] = []
@@ -341,13 +420,14 @@ def _ranked_vacancies(storage: Storage, config_path: str, excluded: set[Applicat
         analysis = analyze_vacancy(vacancy, profile)
         if analysis.track not in {VacancyTrack.AI, VacancyTrack.RUBY}:
             continue
-        ranked.append(
-            RankedVacancy(
-                vacancy=vacancy,
-                analysis=analysis,
-                application_status=statuses.get(vacancy.external_id, ApplicationStatus.NEW),
-            )
+        ranked_item = RankedVacancy(
+            vacancy=vacancy,
+            analysis=analysis,
+            application_status=statuses.get(vacancy.external_id, ApplicationStatus.NEW),
         )
+        if not _should_keep_ranked_vacancy(ranked_item):
+            continue
+        ranked.append(ranked_item)
     ranked.sort(
         key=lambda item: (
             item.analysis.priority_bucket,
@@ -435,7 +515,6 @@ def _print_ranked(items: list[RankedVacancy], top: int) -> None:
         print(f"    Почему подходит: {', '.join(analysis.reasons) if analysis.reasons else 'совпадений мало'}")
         print(f"    Что проверить: {', '.join(analysis.concerns) if analysis.concerns else 'существенных красных флагов нет'}")
         print(f"    Итог: {analysis.summary_ru}")
-        print(f"    Outline: {' | '.join(analysis.cover_letter_outline)}")
         if vacancy.url:
             print(f"    URL: {vacancy.url}")
         print("")
@@ -584,39 +663,6 @@ def report_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def draft_cover_letters_command(args: argparse.Namespace) -> int:
-    storage = resolve_storage(args)
-    profile = load_profile(args.config)
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    generated_paths: list[Path] = []
-    missing_ids: list[str] = []
-    for vacancy_id in args.vacancy_ids:
-        vacancy = storage.get_vacancy(vacancy_id)
-        if vacancy is None:
-            missing_ids.append(vacancy_id)
-            continue
-        analysis = analyze_vacancy(vacancy, profile)
-        content = build_cover_letter_ru(profile, vacancy, analysis)
-        filename = build_cover_letter_filename(vacancy)
-        output_path = output_dir / filename
-        output_path.write_text(content, encoding="utf-8")
-        generated_paths.append(output_path)
-
-    index_lines = ["# Draft Cover Letters", ""]
-    for path in generated_paths:
-        index_lines.append(f"- {path.name}")
-    (output_dir / "index.md").write_text("\n".join(index_lines).strip() + "\n", encoding="utf-8")
-
-    for path in generated_paths:
-        print(f"Generated {path}")
-    if missing_ids:
-        print(f"Vacancy ids not found: {', '.join(missing_ids)}", file=sys.stderr)
-        return 1
-    return 0
-
-
 def history_command(args: argparse.Namespace) -> int:
     storage = resolve_storage(args)
     rows = storage.list_application_history()
@@ -674,8 +720,6 @@ def main(argv: list[str] | None = None) -> int:
         return export_my_applications_command(args)
     if args.command == "report":
         return report_command(args)
-    if args.command == "draft-cover-letters":
-        return draft_cover_letters_command(args)
     if args.command == "history":
         return history_command(args)
     if args.command == "show-latest":

@@ -74,26 +74,6 @@ def format_concerns_ru(concerns: list[str], limit: int = 2) -> str:
     return "; ".join(translate_concern_ru(concern) for concern in concerns[:limit])
 
 
-def build_cover_letter_outline(track: VacancyTrack, vacancy: Vacancy) -> list[str]:
-    if track == VacancyTrack.AI:
-        return [
-            "13+ лет в backend-разработке: архитектура сервисов, API, интеграции, PostgreSQL, Redis, AWS.",
-            "Переход в AI-track: LLM-интеграции, RAG, vector DB, automation, agent-based workflows.",
-            f"Хочу усилить вашу команду на позиции, где backend-надежность и AI-интеграции важнее чисто исследовательского ML: {vacancy.title}.",
-        ]
-    if track == VacancyTrack.RUBY:
-        return [
-            "13+ лет в backend, сильный production-опыт с Ruby on Rails.",
-            "Практический опыт с PostgreSQL, Redis, Sidekiq, GraphQL, Docker, AWS и интеграциями.",
-            f"Интересна роль {vacancy.title}, где можно быстро приносить ценность в backend и reliability.",
-        ]
-    return [
-        "Сильный backend-фундамент и опыт production-систем.",
-        "Открыт к ролям с хорошим пересечением по архитектуре, интеграциям и automation.",
-        f"Нужно уточнить глубину совпадения по роли {vacancy.title} перед откликом.",
-    ]
-
-
 def build_summary_ru(vacancy: Vacancy, analysis: VacancyAnalysis) -> str:
     reasons = format_reasons_ru(analysis.reasons)
     concerns = format_concerns_ru(analysis.concerns)

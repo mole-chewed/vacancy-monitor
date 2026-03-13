@@ -80,7 +80,6 @@ def _build_section(title: str, items: list[RankedVacancy], limit: int) -> list[s
                 f"- Почему рассматривать: {format_reasons_ru(analysis.reasons)}",
                 f"- Риски: {format_concerns_ru(analysis.concerns)}",
                 f"- Краткий вывод: {analysis.summary_ru}",
-                f"- Сопроводительное письмо: {' | '.join(analysis.cover_letter_outline)}",
                 f"- Ссылка: {vacancy.url or 'нет ссылки'}",
                 "",
             ]

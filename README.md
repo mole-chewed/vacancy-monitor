@@ -77,7 +77,6 @@ PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db export-my-a
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db import-json --input data/sample_vacancies.json
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db rank --top 20
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db report --output data/application_report.md
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db draft-cover-letters --vacancy-id 131177266 --output-dir data/cover_letters
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db mark --vacancy-id genai-backend-001 --status applied
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db history
 ```
@@ -98,7 +97,15 @@ PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db init-db
 PYTHONPATH=src python3 -m hh_monitor.cli list-searches
 ```
 
-3. Pull fresh vacancies from hh.ru public API using the configured profile searches:
+3. Optionally add vacancy ids you never want to see again to `config/ignored_vacancy_ids.txt`:
+
+```text
+# one hh.ru vacancy id per line
+131083362
+130438587
+```
+
+4. Pull fresh vacancies from hh.ru public API using the configured profile searches:
 
 ```bash
 PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db fetch-hh-profile
@@ -108,7 +115,7 @@ This now fetches all hh.ru result pages for the configured profile searches, not
 The shipped profile uses `fetch_all = true`, `per_page = 100`, and avoids per-vacancy detail requests on the broad search stage to reduce captcha/rate-limit issues.
 After that, the `report` command performs a second-stage hydration for the top shortlist and fetches full vacancy details only for those likely finalists.
 
-4. Refresh your already-applied vacancies from hh.ru UI so they are excluded from ranking:
+5. Refresh your already-applied vacancies from hh.ru UI so they are excluded from ranking:
 
 ```bash
 PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db export-my-applications \
@@ -118,21 +125,27 @@ PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db export-my-
   --import-status applied
 ```
 
-5. Generate the final OpenAI report from the local DB, your profile config, and your CV PDF:
+6. Generate the final OpenAI report from the local DB, your profile config, and your CV PDF:
 
 ```bash
 PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db report \
   --cv-path data/Alexander_Kharitonov_CV_ENG_2026.pdf \
+  --hydrate-top 20 \
+  --top-apply 5 \
+  --top-maybe 5 \
+  --top-skip 2 \
   --output data/application_report.md
 ```
 
 Notes about this flow:
 
 - `fetch-hh-profile` pulls vacancies from hh.ru public API using the search groups in `config/profile.toml`
+- vacancy ids listed in `config/ignored_vacancy_ids.txt` are skipped during import and excluded from ranking/report even if they already exist in SQLite
 - the broad hh.ru profile searches now exhaust all result pages instead of stopping at `pages = 2`
 - `export-my-applications` updates local application history from the hh.ru UI and excludes those vacancies from later ranking
 - `report` does not pull fresh hh.ru data itself; it works from the local SQLite DB and sends prepared evidence to OpenAI
 - the report now uses only remote vacancies and only AI/Ruby-track vacancies before sending them to OpenAI
+- ML research, model-training, computer-vision, diffusion, architect, Python-title-heavy, and automation-only roles are deterministically excluded before report generation
 
 For package imports without installation:
 
@@ -149,6 +162,7 @@ Copy `config/profile.example.toml` to `config/profile.toml` and adjust:
 - keyword weights
 - salary expectations
 - hh.ru public API search groups under `[search.*]`
+- local ignored vacancy ids file under `[files].ignored_vacancy_ids_path`
 
 Environment variables live in `.env`.
 
@@ -158,8 +172,20 @@ The example profile already defines:
 - `ai_transition`
 - `ruby_primary`
 - `hh.applicant_history_url`
+- `files.ignored_vacancy_ids_path`
 
 Those are fetched in priority order via `fetch-hh-profile`.
+
+The repository includes:
+
+- [profile.example.toml](/Users/sashah/p/hh-positions-validation/config/profile.example.toml)
+- [ignored_vacancy_ids.example.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancy_ids.example.txt)
+
+Your local editable ignore file is:
+
+- `config/ignored_vacancy_ids.txt`
+- one vacancy id per line
+- `#` comments are allowed
 
 ## UI Fallback
 
@@ -227,11 +253,11 @@ Generate a markdown report via OpenAI after the deterministic pipeline prepares 
 ```bash
 PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db report \
   --cv-path data/Alexander_Kharitonov_CV_ENG_2026.pdf \
-  --hydrate-top 80 \
-  --output data/application_report.md \
-  --top-apply 20 \
-  --top-maybe 20 \
-  --top-skip 12
+  --hydrate-top 20 \
+  --top-apply 5 \
+  --top-maybe 5 \
+  --top-skip 2 \
+  --output data/application_report.md
 ```
 
 The report includes:
@@ -243,7 +269,7 @@ The report includes:
 - manual-review vacancies that may still be worth checking
 - skipped vacancies as a low-attention log
 - vacancy links, not just ids
-- salary expectations, risks, and cover-letter drafts for apply/maybe vacancies
+- salary expectations and risks
 
 Requirements:
 
@@ -252,19 +278,20 @@ Requirements:
 - deterministic score/label are sent as advisory evidence, but the final report text and prioritization come from OpenAI
 - the report is built from remote-only vacancies and only `ai` / `ruby` tracks
 - before sending evidence to OpenAI, the app refreshes the top `--hydrate-top` vacancies through the hh.ru detail endpoint for better descriptions and requirements
+- the OpenAI request now sends a bounded payload in a single request: a compact shortlist plus a detailed shortlist sized from `--top-apply`, `--top-maybe`, and `--top-skip`
 
-## Draft Cover Letters
+Option meanings:
 
-Once you choose which vacancies to pursue, generate Russian draft letters by vacancy id:
+- `--hydrate-top 20` fetches full hh.ru vacancy details only for the top 20 ranked vacancies before sending the shortlist to OpenAI
+- `--top-apply 5` includes up to 5 vacancies whose deterministic action is `apply`
+- `--top-maybe 5` includes up to 5 vacancies whose deterministic action is `maybe`
+- `--top-skip 2` includes up to 2 vacancies whose deterministic action is `skip`
 
-```bash
-PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db draft-cover-letters \
-  --vacancy-id 131177266 \
-  --vacancy-id 130438587 \
-  --output-dir data/cover_letters
-```
+Recommended interpretation:
 
-This creates one markdown file per vacancy plus `index.md` in the output directory.
+- `--hydrate-top` controls detail enrichment from hh.ru
+- `--top-apply`, `--top-maybe`, and `--top-skip` control how many vacancies from each decision bucket are included in the final OpenAI report
+- for larger reports, increase these numbers gradually; with the current dataset this conservative set is the safest default
 
 ## Ranking design
 
@@ -282,6 +309,14 @@ Final rank order:
 5. Moderate Ruby Match
 6. Possible Match
 7. Skip
+
+Additional deterministic exclusions:
+
+- ML research / model training / deep learning roles
+- computer vision / diffusion / ComfyUI / image-video pipeline roles
+- architect-heavy roles
+- Python-title-heavy roles that are not realistic transition matches
+- automation-only / no-code / low-code roles without enough backend depth
 
 Current duplicate handling:
 
@@ -312,6 +347,5 @@ Additional manual verification completed:
 ## Future LLM TODOs
 
 - Generate Russian explanations from deterministic evidence
-- Suggest tailored cover-letter bullets
 - Resolve ambiguous AI-vs-product roles with a secondary opinion layer
 - Learn from manual outcomes (`applied`, `interview`, `rejected`) without replacing rule-based ranking

@@ -124,7 +124,6 @@ class VacancyAnalysis:
     matched_keywords: dict[str, list[str]]
     red_flags: list[str]
     expected_salary: str
-    cover_letter_outline: list[str]
     summary_ru: str
     generated_at: str = field(default_factory=utc_now_iso)
 

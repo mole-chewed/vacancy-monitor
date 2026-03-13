@@ -1,4 +1,5 @@
 from pathlib import Path
+import tempfile
 import sys
 import unittest
 
@@ -26,6 +27,55 @@ class ConfigTestCase(unittest.TestCase):
 
         self.assertEqual(profile.applicant_history_url, "https://simferopol.hh.ru/applicant/negotiations")
         self.assertTrue(profile.preferences.remote_only)
+        self.assertTrue(profile.ignored_vacancy_ids_path.endswith("config/ignored_vacancy_ids.example.txt"))
+        self.assertEqual(profile.ignored_vacancy_ids, frozenset())
+
+    def test_profile_loads_ignored_vacancy_ids_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            (temp_path / "ignored_ids.txt").write_text("# comment\n131083362\n130438587\n", encoding="utf-8")
+            (temp_path / "profile.toml").write_text(
+                """
+[candidate]
+name = "Test"
+summary = "Summary"
+preferred_language = "ru"
+
+[preferences]
+remote_only = true
+remote_preferred = true
+accept_russia = true
+accept_moscow_hybrid = true
+full_time_preferred = true
+long_term_contract_ok = true
+
+[files]
+ignored_vacancy_ids_path = "ignored_ids.txt"
+
+[salary]
+currency = "RUR"
+minimum = 1
+target = 2
+stretch = 3
+
+[weights]
+ai_track_boost = 1
+ruby_track_boost = 1
+remote_bonus = 1
+hybrid_bonus = 1
+onsite_penalty = 1
+python_strong_penalty = 1
+frontend_penalty = 1
+product_penalty = 1
+ml_research_penalty = 1
+n8n_penalty = 1
+                """.strip(),
+                encoding="utf-8",
+            )
+
+            profile = load_profile(temp_path / "profile.toml")
+
+        self.assertEqual(profile.ignored_vacancy_ids, frozenset({"131083362", "130438587"}))
 
 
 if __name__ == "__main__":

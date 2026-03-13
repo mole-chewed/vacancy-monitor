@@ -350,7 +350,7 @@ class Storage:
             json.dumps(analysis.matched_keywords, ensure_ascii=False),
             json.dumps(analysis.red_flags, ensure_ascii=False),
             analysis.expected_salary,
-            json.dumps(analysis.cover_letter_outline, ensure_ascii=False),
+            "[]",
             analysis.summary_ru,
             analysis.generated_at,
         )
@@ -393,7 +393,6 @@ class Storage:
             matched_keywords=json.loads(row["matched_keywords_json"]),
             red_flags=json.loads(row["red_flags_json"]),
             expected_salary=row["expected_salary"],
-            cover_letter_outline=json.loads(row["cover_letter_json"]),
             summary_ru=row["summary_ru"],
             generated_at=row["generated_at"],
         )

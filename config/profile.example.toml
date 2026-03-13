@@ -14,10 +14,13 @@ long_term_contract_ok = true
 [hh]
 applicant_history_url = "https://simferopol.hh.ru/applicant/negotiations"
 
+[files]
+ignored_vacancy_ids_path = "ignored_vacancy_ids.example.txt"
+
 [salary]
 currency = "RUR"
-minimum = 350000
-target = 450000
+minimum = 250000
+target = 400000
 stretch = 550000
 
 [weights]
