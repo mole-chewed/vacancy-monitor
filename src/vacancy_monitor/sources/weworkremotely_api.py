@@ -73,15 +73,17 @@ def parse_listing_page(html: str, *, base_url: str) -> list[dict[str, Any]]:
             continue
         href = href_match.group("href")
         categories = [_clean_text(match) for match in CATEGORY_RE.findall(block)]
+        location_match = LOCATION_RE.search(block)
+        date_match = DATE_RE.search(block)
         jobs.append(
             {
                 "id": href.rsplit("/", 1)[-1],
                 "url": f"{base_url}{href}",
                 "title": _clean_text(title_match.group("title")),
                 "company": _clean_text(company_match.group("company")),
-                "location": _clean_text(LOCATION_RE.search(block).group("location")) if LOCATION_RE.search(block) else "Remote",
+                "location": _clean_text(location_match.group("location")) if location_match else "Remote",
                 "categories": [item for item in categories if item],
-                "listed_at": _clean_text(DATE_RE.search(block).group("date")) if DATE_RE.search(block) else None,
+                "listed_at": _clean_text(date_match.group("date")) if date_match else None,
             }
         )
     return jobs

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from vacancy_monitor.adapters.base import BaseAdapter
+from vacancy_monitor.adapters.base import AdapterCapabilities, BaseAdapter
 from vacancy_monitor.models import NormalizedVacancy, SearchQuery
 from vacancy_monitor.normalization import vacancy_from_payload
 from vacancy_monitor.sources.hh_api import HeadHunterClient
@@ -10,7 +10,11 @@ from vacancy_monitor.sources.hh_api import HeadHunterClient
 
 class HHAdapter(BaseAdapter):
     source_name = "hh"
-    supports_detail_hydration = True
+    capabilities = AdapterCapabilities(
+        supports_detail_hydration=True,
+        supports_pagination=True,
+        supports_remote_filtering=True,
+    )
 
     def __init__(self, client: HeadHunterClient) -> None:
         self.client = client

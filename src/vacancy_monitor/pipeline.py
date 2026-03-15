@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 
 from vacancy_monitor.adapters.base import BaseAdapter
 from vacancy_monitor.adapters.habr_adapter import HabrCareerAdapter
@@ -20,6 +21,14 @@ from vacancy_monitor.sources.weworkremotely_api import WeWorkRemotelyClient
 from vacancy_monitor.storage import Storage
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _supports_detail_hydration(adapter: BaseAdapter) -> bool:
+    return adapter.capabilities.supports_detail_hydration
+
+
+def _supports_search(adapter: BaseAdapter) -> bool:
+    return adapter.capabilities.supports_search
 
 
 def build_adapter_registry(settings) -> dict[str, BaseAdapter]:
@@ -59,7 +68,7 @@ def build_adapter_registry(settings) -> dict[str, BaseAdapter]:
     }
 def fetch_search_queries(
     adapters: dict[str, BaseAdapter],
-    queries: list[SearchQuery],
+    queries: Iterable[SearchQuery],
     *,
     profile: CandidateProfile,
     storage: Storage | None = None,
@@ -71,6 +80,8 @@ def fetch_search_queries(
         adapter = adapters.get(query.source)
         if adapter is None:
             raise RuntimeError(f"Source adapter is not configured: {query.source}")
+        if not _supports_search(adapter):
+            raise RuntimeError(f"Source adapter does not support search: {query.source}")
         vacancies = [vacancy for vacancy in adapter.search(query) if not vacancy_is_ignored(profile, vacancy)]
         collected.extend(vacancies)
         saved = storage.upsert_vacancies(vacancies) if storage is not None else len(vacancies)
@@ -97,7 +108,7 @@ def hydrate_ranked_vacancies(
         adapter = adapters.get(family)
         if adapter is None:
             continue
-        if not getattr(adapter, "supports_detail_hydration", False):
+        if not _supports_detail_hydration(adapter):
             continue
         try:
             payload = adapter.fetch_details(item.vacancy.external_id, raw_item=item.vacancy.source_metadata)

@@ -21,6 +21,7 @@ vacancy-monitor --help
 - SQLite first: local, simple, and enough for an MVP with application history.
 - CLI first: easier to iterate on ingestion, scoring, and manual review.
 - Extensible: source adapters isolate collection logic so new platforms can be added without rewriting ranking/storage.
+- Explicit adapter capabilities: the pipeline checks declared provider capabilities instead of relying on source-specific assumptions.
 
 ## Architecture
 
@@ -232,6 +233,12 @@ Run the linter:
 
 ```bash
 ruff check .
+```
+
+Run type checks:
+
+```bash
+mypy
 ```
 
 ## Configuration

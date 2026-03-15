@@ -1,0 +1,24 @@
+{
+  "jobs": [
+    {
+      "id": 101,
+      "title": "Senior Ruby on Rails Engineer",
+      "company_name": "Ruby Co",
+      "candidate_required_location": "Worldwide",
+      "description": "Build backend APIs with Rails and PostgreSQL.",
+      "tags": ["Ruby", "Ruby on Rails", "PostgreSQL", "API"],
+      "url": "https://remotive.com/remote-jobs/software-dev/senior-ruby-on-rails-engineer-101",
+      "publication_date": "2026-03-10T10:00:00",
+      "job_type": "full_time"
+    },
+    {
+      "id": 202,
+      "title": "Frontend React Engineer",
+      "company_name": "Frontend Co",
+      "candidate_required_location": "USA",
+      "description": "React, TypeScript, CSS",
+      "tags": ["React", "Frontend"],
+      "url": "https://remotive.com/remote-jobs/software-dev/frontend-react-engineer-202"
+    }
+  ]
+}

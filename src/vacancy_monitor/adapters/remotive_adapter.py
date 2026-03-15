@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from vacancy_monitor.adapters.base import BaseAdapter
+from vacancy_monitor.adapters.base import AdapterCapabilities, BaseAdapter
 from vacancy_monitor.models import NormalizedVacancy, SearchQuery
 from vacancy_monitor.normalization import vacancy_from_remotive_payload
 from vacancy_monitor.sources.remotive_api import RemotiveClient
@@ -10,7 +10,11 @@ from vacancy_monitor.sources.remotive_api import RemotiveClient
 
 class RemotiveAdapter(BaseAdapter):
     source_name = "remotive"
-    supports_detail_hydration = True
+    capabilities = AdapterCapabilities(
+        supports_detail_hydration=True,
+        supports_pagination=False,
+        supports_remote_filtering=True,
+    )
 
     def __init__(self, client: RemotiveClient) -> None:
         self.client = client

@@ -250,12 +250,13 @@ def _coerce_vacancy_id(row: dict[str, object]) -> str | None:
         return str(direct)
 
     nested_vacancy = row.get("vacancy")
-    if isinstance(nested_vacancy, dict):
-        nested_id = nested_vacancy.get("id")
+    nested_vacancy_dict = nested_vacancy if isinstance(nested_vacancy, dict) else None
+    if nested_vacancy_dict is not None:
+        nested_id = nested_vacancy_dict.get("id")
         if nested_id is not None and str(nested_id).isdigit():
             return str(nested_id)
 
-    for candidate in [row.get("url"), row.get("alternate_url"), (nested_vacancy or {}).get("alternate_url")]:
+    for candidate in [row.get("url"), row.get("alternate_url"), nested_vacancy_dict.get("alternate_url") if nested_vacancy_dict else None]:
         if isinstance(candidate, str):
             match = VACANCY_URL_RE.search(candidate)
             if match:
@@ -264,10 +265,12 @@ def _coerce_vacancy_id(row: dict[str, object]) -> str | None:
 
 
 def _coerce_url(row: dict[str, object], vacancy_id: str) -> str:
+    nested_vacancy = row.get("vacancy")
+    nested_vacancy_dict = nested_vacancy if isinstance(nested_vacancy, dict) else None
     for candidate in [
         row.get("url"),
         row.get("alternate_url"),
-        (row.get("vacancy") or {}).get("alternate_url") if isinstance(row.get("vacancy"), dict) else None,
+        nested_vacancy_dict.get("alternate_url") if nested_vacancy_dict else None,
     ]:
         if isinstance(candidate, str) and candidate:
             return candidate

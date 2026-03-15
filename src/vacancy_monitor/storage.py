@@ -338,6 +338,8 @@ class Storage:
                 "INSERT INTO ranking_runs (created_at, total_vacancies) VALUES (?, ?)",
                 (ranked[0].analysis.generated_at if ranked else "", len(ranked)),
             )
+            if cursor.lastrowid is None:
+                raise RuntimeError("Failed to persist ranking run id")
             run_id = int(cursor.lastrowid)
             conn.executemany(
                 """

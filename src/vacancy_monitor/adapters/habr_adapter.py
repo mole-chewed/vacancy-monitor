@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from vacancy_monitor.adapters.base import BaseAdapter
+from vacancy_monitor.adapters.base import AdapterCapabilities, BaseAdapter
 from vacancy_monitor.models import NormalizedVacancy, SearchQuery
 from vacancy_monitor.normalization import vacancy_from_habr_payload
 from vacancy_monitor.sources.habr_api import HabrCareerClient
@@ -10,7 +10,11 @@ from vacancy_monitor.sources.habr_api import HabrCareerClient
 
 class HabrCareerAdapter(BaseAdapter):
     source_name = "habr"
-    supports_detail_hydration = True
+    capabilities = AdapterCapabilities(
+        supports_detail_hydration=True,
+        supports_pagination=True,
+        supports_remote_filtering=False,
+    )
 
     def __init__(self, client: HabrCareerClient) -> None:
         self.client = client

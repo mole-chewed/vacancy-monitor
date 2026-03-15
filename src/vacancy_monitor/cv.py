@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import importlib
 from pathlib import Path
+from types import ModuleType
 
 try:  # pragma: no cover - optional dependency path
-    from pypdf import PdfReader
+    pypdf: ModuleType | None = importlib.import_module("pypdf")
 except ModuleNotFoundError:  # pragma: no cover
-    PdfReader = None  # type: ignore[assignment]
+    pypdf = None
 
 
 class CvExtractionError(RuntimeError):
@@ -16,11 +18,11 @@ def extract_cv_text(pdf_path: str | Path, max_chars: int = 40000) -> str:
     path = Path(pdf_path)
     if not path.exists():
         raise CvExtractionError(f"CV file not found: {path}")
-    if PdfReader is None:
+    if pypdf is None:
         raise CvExtractionError("pypdf is not installed. Install dependencies before using CV-based reporting.")
 
     try:
-        reader = PdfReader(str(path))
+        reader = pypdf.PdfReader(str(path))
     except Exception as exc:  # pragma: no cover - depends on PDF parser/runtime
         raise CvExtractionError(f"Failed to open CV PDF: {exc}") from exc
 

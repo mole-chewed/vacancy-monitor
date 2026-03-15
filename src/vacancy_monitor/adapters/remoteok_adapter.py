@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from vacancy_monitor.adapters.base import BaseAdapter
+from vacancy_monitor.adapters.base import AdapterCapabilities, BaseAdapter
 from vacancy_monitor.models import NormalizedVacancy, SearchQuery
 from vacancy_monitor.normalization import vacancy_from_remoteok_payload
 from vacancy_monitor.sources.remoteok_api import RemoteOkClient
@@ -10,7 +10,11 @@ from vacancy_monitor.sources.remoteok_api import RemoteOkClient
 
 class RemoteOkAdapter(BaseAdapter):
     source_name = "remoteok"
-    supports_detail_hydration = True
+    capabilities = AdapterCapabilities(
+        supports_detail_hydration=True,
+        supports_pagination=False,
+        supports_remote_filtering=True,
+    )
 
     def __init__(self, client: RemoteOkClient) -> None:
         self.client = client

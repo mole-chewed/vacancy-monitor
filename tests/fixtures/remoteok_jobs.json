@@ -1,0 +1,28 @@
+[
+  {
+    "legal": "Remote OK API"
+  },
+  {
+    "id": 101,
+    "slug": "senior-ruby",
+    "position": "Senior Ruby on Rails Developer",
+    "company": "Ruby Co",
+    "location": "Worldwide",
+    "description": "Build backend APIs with Rails and PostgreSQL.",
+    "tags": ["Ruby", "Ruby on Rails", "PostgreSQL", "API"],
+    "url": "https://remoteok.com/remote-jobs/101",
+    "salary_min": 80000,
+    "salary_max": 120000,
+    "date": "2026-03-10T10:00:00+00:00"
+  },
+  {
+    "id": 202,
+    "slug": "frontend-react",
+    "position": "Frontend React Engineer",
+    "company": "Frontend Co",
+    "location": "Worldwide",
+    "description": "React, TypeScript, CSS",
+    "tags": ["React", "Frontend"],
+    "url": "https://remoteok.com/remote-jobs/202"
+  }
+]

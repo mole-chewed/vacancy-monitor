@@ -535,11 +535,15 @@ def _hydrate_ranked_vacancies(
         return ranked
 
     if client is not None:
+        from vacancy_monitor.adapters.base import AdapterCapabilities, BaseAdapter
         from vacancy_monitor.normalization import vacancy_from_payload
 
-        class InlineHHAdapter:
+        class InlineHHAdapter(BaseAdapter):
             source_name = "hh"
-            supports_detail_hydration = True
+            capabilities = AdapterCapabilities(supports_detail_hydration=True)
+
+            def search(self, query, **kwargs):
+                raise NotImplementedError
 
             def fetch_details(self, external_id: str, *, raw_item=None):
                 return client.get_vacancy(external_id)
@@ -547,7 +551,7 @@ def _hydrate_ranked_vacancies(
             def normalize(self, raw_item, raw_details=None):
                 return vacancy_from_payload(raw_details or raw_item, source=raw_item.get("source", "hh_api:test"))
 
-        adapters = {"hh": InlineHHAdapter()}
+        adapters: dict[str, BaseAdapter] = {"hh": InlineHHAdapter()}
     else:
         adapters = build_adapter_registry(settings)
     profile = load_profile(config_path)

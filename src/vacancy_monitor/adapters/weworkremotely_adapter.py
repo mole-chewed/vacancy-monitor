@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from vacancy_monitor.adapters.base import BaseAdapter
+from vacancy_monitor.adapters.base import AdapterCapabilities, BaseAdapter
 from vacancy_monitor.models import NormalizedVacancy, SearchQuery
 from vacancy_monitor.normalization import vacancy_from_weworkremotely_payload
 from vacancy_monitor.sources.weworkremotely_api import WeWorkRemotelyClient
@@ -10,7 +10,12 @@ from vacancy_monitor.sources.weworkremotely_api import WeWorkRemotelyClient
 
 class WeWorkRemotelyAdapter(BaseAdapter):
     source_name = "weworkremotely"
-    supports_detail_hydration = True
+    capabilities = AdapterCapabilities(
+        supports_detail_hydration=True,
+        supports_pagination=True,
+        supports_remote_filtering=False,
+        requires_source_url=True,
+    )
 
     def __init__(self, client: WeWorkRemotelyClient) -> None:
         self.client = client

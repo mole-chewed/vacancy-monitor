@@ -143,4 +143,4 @@ def _raise_for_status(response: requests.Response) -> str:
     except requests.HTTPError as exc:  # pragma: no cover - depends on live site behavior
         detail = response.text[:500]
         raise HabrCareerApiError(f"Habr request failed: {response.status_code} {detail}") from exc
-    return response.text
+    return str(response.text)

@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import ast
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-try:
+if sys.version_info >= (3, 11):
     import tomllib
-except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
-    tomllib = None
+else:  # pragma: no cover - Python 3.10 fallback
+    import tomli as tomllib
 
 from vacancy_monitor.models import SearchQuery, VacancyTrack
 
@@ -177,23 +178,25 @@ def load_profile(config_path: str | Path = "config/profile.toml") -> CandidatePr
 
     data = _load_toml(path.read_text(encoding="utf-8"))
 
-    candidate = data["candidate"]
-    preferences = data["preferences"]
-    hh = data.get("hh", {})
-    files = data.get("files", {})
-    defaults = data.get("defaults", {})
-    ranking = data.get("ranking", {})
-    salary = data["salary"]
-    weights = data["weights"]
-    ignored_vacancy_ids_dir = _optional_str(files.get("ignored_vacancy_ids_dir")) if isinstance(files, dict) else None
+    candidate = _require_dict(data, "candidate")
+    preferences = _require_dict(data, "preferences")
+    hh = _optional_dict(data.get("hh"))
+    files = _optional_dict(data.get("files"))
+    defaults = _optional_dict(data.get("defaults"))
+    ranking = _optional_dict(data.get("ranking"))
+    salary = _require_dict(data, "salary")
+    weights = _require_dict(data, "weights")
+    keywords = _optional_dict(data.get("keywords"))
+    search = _optional_dict(data.get("search"))
+    ignored_vacancy_ids_dir = _optional_str(files.get("ignored_vacancy_ids_dir"))
     resolved_ignored_dir = _resolve_optional_path(path, ignored_vacancy_ids_dir)
     ignored_by_source = _load_vacancy_id_dir(resolved_ignored_dir)
 
     return CandidateProfile(
-        name=candidate["name"],
-        summary=candidate["summary"],
-        preferred_language=candidate.get("preferred_language", "ru"),
-        applicant_history_url=_optional_str(hh.get("applicant_history_url")) if isinstance(hh, dict) else None,
+        name=_require_str(candidate, "name"),
+        summary=_require_str(candidate, "summary"),
+        preferred_language=_optional_str(candidate.get("preferred_language")) or "ru",
+        applicant_history_url=_optional_str(hh.get("applicant_history_url")),
         ignored_vacancy_ids_by_source=ignored_by_source,
         preferences=CandidatePreferences(
             remote_only=bool(preferences.get("remote_only", preferences.get("remote_preferred", False))),
@@ -204,40 +207,77 @@ def load_profile(config_path: str | Path = "config/profile.toml") -> CandidatePr
             long_term_contract_ok=bool(preferences["long_term_contract_ok"]),
         ),
         salary=SalaryExpectation(
-            currency=salary["currency"],
-            minimum=int(salary["minimum"]),
-            target=int(salary["target"]),
-            stretch=int(salary["stretch"]),
+            currency=_require_str(salary, "currency"),
+            minimum=_require_int(salary, "minimum"),
+            target=_require_int(salary, "target"),
+            stretch=_require_int(salary, "stretch"),
         ),
         weights=ScoringWeights(
-            ai_track_boost=int(weights["ai_track_boost"]),
-            ruby_track_boost=int(weights["ruby_track_boost"]),
-            remote_bonus=int(weights["remote_bonus"]),
-            hybrid_bonus=int(weights["hybrid_bonus"]),
-            onsite_penalty=int(weights["onsite_penalty"]),
-            python_strong_penalty=int(weights["python_strong_penalty"]),
-            frontend_penalty=int(weights["frontend_penalty"]),
-            product_penalty=int(weights["product_penalty"]),
-            ml_research_penalty=int(weights["ml_research_penalty"]),
-            n8n_penalty=int(weights["n8n_penalty"]),
+            ai_track_boost=_require_int(weights, "ai_track_boost"),
+            ruby_track_boost=_require_int(weights, "ruby_track_boost"),
+            remote_bonus=_require_int(weights, "remote_bonus"),
+            hybrid_bonus=_require_int(weights, "hybrid_bonus"),
+            onsite_penalty=_require_int(weights, "onsite_penalty"),
+            python_strong_penalty=_require_int(weights, "python_strong_penalty"),
+            frontend_penalty=_require_int(weights, "frontend_penalty"),
+            product_penalty=_require_int(weights, "product_penalty"),
+            ml_research_penalty=_require_int(weights, "ml_research_penalty"),
+            n8n_penalty=_require_int(weights, "n8n_penalty"),
         ),
         ranking=RankingPreferences(
             primary_track=VacancyTrack(_optional_str(ranking.get("primary_track")) or VacancyTrack.RUBY.value),
             secondary_track=VacancyTrack(_optional_str(ranking.get("secondary_track")) or VacancyTrack.AI.value),
-            primary_track_weight=float(ranking.get("primary_track_weight", 1.35)),
-            mixed_track_weight=float(ranking.get("mixed_track_weight", 1.2)),
-            secondary_track_weight=float(ranking.get("secondary_track_weight", 1.0)),
+            primary_track_weight=_coerce_float(ranking.get("primary_track_weight"), 1.35),
+            mixed_track_weight=_coerce_float(ranking.get("mixed_track_weight"), 1.2),
+            secondary_track_weight=_coerce_float(ranking.get("secondary_track_weight"), 1.0),
         ),
-        keyword_overrides={key: list(values) for key, values in data.get("keywords", {}).items()},
-        search_queries=_load_search_queries(data.get("search", {})),
+        keyword_overrides={key: list(values) for key, values in keywords.items() if isinstance(values, list)},
+        search_queries=_load_search_queries(search),
         defaults=_load_command_defaults(defaults),
     )
 
 
 def _load_toml(text: str) -> dict[str, object]:
     if tomllib is not None:
-        return tomllib.loads(text)
+        return cast(dict[str, object], tomllib.loads(text))
     return _parse_simple_toml(text)
+
+
+def _require_dict(data: dict[str, object], key: str) -> dict[str, object]:
+    value = data.get(key)
+    if not isinstance(value, dict):
+        raise ValueError(f"Expected [{key}] section in profile config")
+    return cast(dict[str, object], value)
+
+
+def _optional_dict(value: object) -> dict[str, object]:
+    if isinstance(value, dict):
+        return cast(dict[str, object], value)
+    return {}
+
+
+def _require_str(data: dict[str, object], key: str) -> str:
+    value = data.get(key)
+    if not isinstance(value, str):
+        raise ValueError(f"Expected string value for {key}")
+    return value
+
+
+def _require_int(data: dict[str, object], key: str) -> int:
+    value = data.get(key)
+    if isinstance(value, bool) or value is None:
+        raise ValueError(f"Expected integer value for {key}")
+    if isinstance(value, (int, float, str)):
+        return int(value)
+    raise ValueError(f"Expected integer value for {key}")
+
+
+def _coerce_float(value: object, default: float) -> float:
+    if value is None:
+        return default
+    if isinstance(value, (int, float, str)):
+        return float(value)
+    return default
 
 
 def _parse_simple_toml(text: str) -> dict[str, object]:

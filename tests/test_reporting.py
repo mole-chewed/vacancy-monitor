@@ -12,6 +12,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from vacancy_monitor.adapters.base import AdapterCapabilities
 from vacancy_monitor.cli import _hydrate_ranked_vacancies, _ranked_vacancies, _warn_if_history_missing
 from vacancy_monitor.config import load_profile
 from vacancy_monitor.models import ApplicationStatus, RankedVacancy, WorkFormat
@@ -241,9 +242,9 @@ class ReportingTestCase(unittest.TestCase):
             ranked = _ranked_vacancies(storage, "config/profile.example.toml", excluded=set(), source_name="weworkremotely")
 
             class UnsupportedAdapter:
-                supports_detail_hydration = False
+                capabilities = AdapterCapabilities(supports_detail_hydration=False)
 
-                def fetch_details(self, external_id: str):
+                def fetch_details(self, external_id: str, *, raw_item=None):
                     raise AssertionError("fetch_details should not be called")
 
                 def normalize(self, raw_item, raw_details=None):

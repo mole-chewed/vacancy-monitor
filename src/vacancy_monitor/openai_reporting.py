@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 from collections.abc import Callable
+from types import ModuleType
 from typing import Any
 
 from vacancy_monitor.config import CandidateProfile
 from vacancy_monitor.models import MatchLabel, RankedVacancy, RecommendedAction, WorkFormat
 
 try:  # pragma: no cover - exercised indirectly in environments with the SDK installed
-    from openai import OpenAI
+    openai_module: ModuleType | None = importlib.import_module("openai")
 except ModuleNotFoundError:  # pragma: no cover - SDK is optional in tests
-    OpenAI = None  # type: ignore[assignment]
+    openai_module = None
 
 
 class OpenAIReportingUnavailableError(RuntimeError):
@@ -44,7 +46,7 @@ def generate_openai_application_report(
 ) -> str:
     if not api_key:
         raise OpenAIReportingUnavailableError("OPENAI_API_KEY is not configured.")
-    if OpenAI is None and client_factory is None:
+    if openai_module is None and client_factory is None:
         raise OpenAIReportingUnavailableError(
             "openai package is not installed. Add it to the environment before running the report command."
         )
@@ -52,7 +54,11 @@ def generate_openai_application_report(
     ranked = [item for item in ranked if item.analysis.action != RecommendedAction.SKIP]
     if not ranked:
         raise OpenAIReportGenerationError("No non-skip vacancies remain after deterministic filtering.")
-    client = client_factory(api_key) if client_factory is not None else OpenAI(api_key=api_key, max_retries=0)
+    if client_factory is not None:
+        client = client_factory(api_key)
+    else:
+        assert openai_module is not None
+        client = openai_module.OpenAI(api_key=api_key, max_retries=0)
     compact_limit, detailed_limit = _select_evidence_limits(
         ranked_count=len(ranked),
         top_apply=top_apply,
