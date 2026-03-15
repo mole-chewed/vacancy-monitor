@@ -6,19 +6,18 @@ from vacancy_monitor.adapters.base import BaseAdapter
 from vacancy_monitor.adapters.habr_adapter import HabrCareerAdapter
 from vacancy_monitor.adapters.hh_adapter import HHAdapter
 from vacancy_monitor.adapters.linkedin_adapter import LinkedInAdapter
-from vacancy_monitor.adapters.remotive_adapter import RemotiveAdapter
 from vacancy_monitor.adapters.remoteok_adapter import RemoteOkAdapter
+from vacancy_monitor.adapters.remotive_adapter import RemotiveAdapter
 from vacancy_monitor.adapters.weworkremotely_adapter import WeWorkRemotelyAdapter
 from vacancy_monitor.config import CandidateProfile, source_family, vacancy_is_ignored
 from vacancy_monitor.models import ApplicationStatus, RankedVacancy, SearchQuery
 from vacancy_monitor.ranking import build_ranked_vacancies
 from vacancy_monitor.sources.habr_api import HabrCareerApiError, HabrCareerClient
 from vacancy_monitor.sources.hh_api import HeadHunterApiError, HeadHunterClient
-from vacancy_monitor.sources.remotive_api import RemotiveApiError, RemotiveClient
 from vacancy_monitor.sources.remoteok_api import RemoteOkApiError, RemoteOkClient
+from vacancy_monitor.sources.remotive_api import RemotiveApiError, RemotiveClient
 from vacancy_monitor.sources.weworkremotely_api import WeWorkRemotelyClient
 from vacancy_monitor.storage import Storage
-
 
 LOGGER = logging.getLogger(__name__)
 

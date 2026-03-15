@@ -3,7 +3,6 @@ from __future__ import annotations
 from vacancy_monitor.config import CandidateProfile
 from vacancy_monitor.models import MatchLabel, Vacancy, VacancyAnalysis, VacancyTrack
 
-
 LABEL_TITLES_RU = {
     MatchLabel.STRONG_AI: "Strong AI Match",
     MatchLabel.AI_TRANSITION: "AI Transition Match",

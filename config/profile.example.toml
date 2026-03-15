@@ -19,7 +19,7 @@ ignored_vacancy_ids_dir = "ignored_vacancies.example"
 
 [defaults.report]
 cv_path = "data/Alexander_Kharitonov_CV_ENG_2026.pdf"
-output_path = "data/application_report.md"
+output_path = "reports/application_report.md"
 hydrate_top = 20
 top_apply = 5
 top_maybe = 5

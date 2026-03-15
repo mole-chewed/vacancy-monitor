@@ -1,6 +1,6 @@
-from pathlib import Path
 import sys
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -10,7 +10,6 @@ if str(SRC) not in sys.path:
 from vacancy_monitor.adapters.habr_adapter import HabrCareerAdapter
 from vacancy_monitor.models import SearchQuery
 from vacancy_monitor.sources.habr_api import parse_job_page, parse_listing_page
-
 
 SAMPLE_LISTING_HTML = """
 <html><body>

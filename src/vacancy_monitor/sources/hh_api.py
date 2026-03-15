@@ -8,7 +8,6 @@ import requests
 from vacancy_monitor.models import SearchQuery, Vacancy
 from vacancy_monitor.normalization import vacancy_from_payload
 
-
 LOGGER = logging.getLogger(__name__)
 
 

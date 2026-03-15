@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from html import unescape
 import re
+from html import unescape
 from typing import Any
 
 from vacancy_monitor.classifiers.remote_classifier import classify_remote_type
 from vacancy_monitor.classifiers.seniority_classifier import classify_seniority
 from vacancy_monitor.models import NormalizedVacancy, SalaryRange, VacancyTrack, WorkFormat
-
 
 WHITESPACE_RE = re.compile(r"\s+")
 HTML_TAG_RE = re.compile(r"<[^>]+>")

@@ -5,7 +5,6 @@ import re
 from vacancy_monitor import keywords
 from vacancy_monitor.models import TrackAssessment, Vacancy, VacancyTrack
 
-
 BOUNDARY_TERMS = {
     "ai",
     "ml",

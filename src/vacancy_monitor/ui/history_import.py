@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from html.parser import HTMLParser
 import json
-from pathlib import Path
 import re
+from html.parser import HTMLParser
+from pathlib import Path
 
 from vacancy_monitor.models import ApplicationStatus, UiApplicationEntry
 from vacancy_monitor.normalization import normalize_text
-
 
 VACANCY_URL_RE = re.compile(r"(https?://hh\.ru)?/vacancy/(\d+)")
 NEGOTIATIONS_ITEM_QA = "negotiations-item"

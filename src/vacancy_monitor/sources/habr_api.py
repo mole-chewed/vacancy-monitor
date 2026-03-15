@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from html import unescape
 import json
 import re
+from html import unescape
 from typing import Any
 from urllib.parse import urlencode
 
 import requests
 
 from vacancy_monitor.models import SearchQuery
-
 
 SSR_STATE_RE = re.compile(r'<script[^>]+data-ssr-state="true"[^>]*>(?P<json>.*?)</script>', re.DOTALL)
 

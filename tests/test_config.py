@@ -1,7 +1,7 @@
-from pathlib import Path
-import tempfile
 import sys
+import tempfile
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -59,7 +59,7 @@ class ConfigTestCase(unittest.TestCase):
         self.assertEqual(profile.ranking.mixed_track_weight, 1.2)
         self.assertEqual(profile.ranking.secondary_track_weight, 1.0)
         self.assertEqual(profile.defaults.report.cv_path, "data/Alexander_Kharitonov_CV_ENG_2026.pdf")
-        self.assertEqual(profile.defaults.report.output_path, "data/application_report.md")
+        self.assertEqual(profile.defaults.report.output_path, "reports/application_report.md")
         self.assertEqual(profile.defaults.report.hydrate_top, 20)
         self.assertEqual(profile.defaults.export_my_applications.output_path, "data/applied_history.html")
         self.assertEqual(profile.defaults.export_my_applications.storage_state_path, "data/browser_storage_state.json")

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
 import ast
 import os
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 try:
@@ -332,7 +332,7 @@ def _load_command_defaults(raw_defaults: object) -> CommandDefaults:
     return CommandDefaults(
         report=ReportDefaults(
             cv_path=_optional_str(report.get("cv_path")) or "data/Alexander_Kharitonov_CV_ENG_2026.pdf",
-            output_path=_optional_str(report.get("output_path")) or "data/application_report.md",
+            output_path=_optional_str(report.get("output_path")) or "reports/application_report.md",
             hydrate_top=int(report.get("hydrate_top", 20)),
             top_apply=int(report.get("top_apply", 5)),
             top_maybe=int(report.get("top_maybe", 5)),

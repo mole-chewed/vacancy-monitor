@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from vacancy_monitor.config import CandidateProfile
-from vacancy_monitor.models import MatchLabel, RankedVacancy, WorkFormat
-from vacancy_monitor.models import RecommendedAction
+from vacancy_monitor.models import MatchLabel, RankedVacancy, RecommendedAction, WorkFormat
 
 try:  # pragma: no cover - exercised indirectly in environments with the SDK installed
     from openai import OpenAI

@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import argparse
 import logging
-from pathlib import Path
 import sys
-from types import SimpleNamespace
+from pathlib import Path
 
 from vacancy_monitor.config import load_profile, load_settings, source_family, vacancy_is_ignored
 from vacancy_monitor.cv import CvExtractionError, extract_cv_text
@@ -14,13 +13,13 @@ from vacancy_monitor.openai_reporting import (
     OpenAIReportingUnavailableError,
     generate_openai_application_report,
 )
-from vacancy_monitor.pipeline import build_adapter_registry, fetch_search_queries, hydrate_ranked_vacancies as pipeline_hydrate_ranked_vacancies
+from vacancy_monitor.pipeline import build_adapter_registry, fetch_search_queries
+from vacancy_monitor.pipeline import hydrate_ranked_vacancies as pipeline_hydrate_ranked_vacancies
 from vacancy_monitor.ranking import build_ranked_vacancies
 from vacancy_monitor.sources.json_import import load_vacancies_from_json
 from vacancy_monitor.storage import Storage
 from vacancy_monitor.ui.history_import import load_ui_application_entries
 from vacancy_monitor.ui.playwright_exporter import ExportPageNotReadyError, PlaywrightUnavailableError, export_hh_page
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -364,7 +363,6 @@ def fetch_weworkremotely_command(args: argparse.Namespace) -> int:
 
 
 def list_searches_command(args: argparse.Namespace) -> int:
-    settings = load_settings(args.env_file)
     profile = load_profile(args.config)
     if profile.ignored_vacancy_ids_by_source:
         for source_name, values in sorted(profile.ignored_vacancy_ids_by_source.items()):

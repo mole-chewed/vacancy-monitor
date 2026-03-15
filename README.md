@@ -67,6 +67,8 @@ Public API boundary today:
 │   └── profile.example.toml
 ├── data/
 │   └── sample_vacancies.json
+├── reports/
+│   └── application_report.md
 ├── src/
 │   └── vacancy_monitor/
 │       ├── __init__.py
@@ -348,9 +350,10 @@ PYTHONPATH=src python3 -m vacancy_monitor report \
   --hydrate-top 20 \
   --top-apply 5 \
   --top-maybe 5 \
-  --top-skip 2 \
-  --output data/application_report.md
+  --top-skip 2
 ```
+
+By default, reports are written to `reports/application_report.md`. Pass `--output` only when you want a different filename.
 
 The report includes:
 

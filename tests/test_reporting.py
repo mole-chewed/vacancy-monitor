@@ -1,9 +1,9 @@
-import unittest
-from pathlib import Path
-import tempfile
-import sys
-from contextlib import redirect_stderr
 import io
+import sys
+import tempfile
+import unittest
+from contextlib import redirect_stderr
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -14,9 +14,9 @@ if str(SRC) not in sys.path:
 
 from vacancy_monitor.cli import _hydrate_ranked_vacancies, _ranked_vacancies, _warn_if_history_missing
 from vacancy_monitor.config import load_profile
-from vacancy_monitor.pipeline import hydrate_ranked_vacancies as pipeline_hydrate_ranked_vacancies
 from vacancy_monitor.models import ApplicationStatus, RankedVacancy, WorkFormat
 from vacancy_monitor.normalization import vacancy_from_payload
+from vacancy_monitor.pipeline import hydrate_ranked_vacancies as pipeline_hydrate_ranked_vacancies
 from vacancy_monitor.reporting import build_application_report_markdown
 from vacancy_monitor.scoring import analyze_vacancy
 from vacancy_monitor.sources.json_import import load_vacancies_from_json

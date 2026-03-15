@@ -6,7 +6,6 @@ from typing import Any
 
 import requests
 
-
 LOGGER = logging.getLogger(__name__)
 GROUP_RE = re.compile(r"\(([^()]+)\)")
 OR_SPLIT_RE = re.compile(r"\s+OR\s+", re.IGNORECASE)

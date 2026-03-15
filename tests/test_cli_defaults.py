@@ -1,6 +1,6 @@
-from pathlib import Path
 import sys
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -19,7 +19,7 @@ class CliDefaultsTestCase(unittest.TestCase):
 
         resolved = _resolve_report_args(args, profile)
 
-        self.assertEqual(resolved.output, "data/application_report.md")
+        self.assertEqual(resolved.output, "reports/application_report.md")
         self.assertEqual(resolved.cv_path, "data/Alexander_Kharitonov_CV_ENG_2026.pdf")
         self.assertEqual(resolved.hydrate_top, 20)
         self.assertEqual(resolved.top_apply, 5)

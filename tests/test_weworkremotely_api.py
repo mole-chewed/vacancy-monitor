@@ -1,6 +1,6 @@
-from pathlib import Path
 import sys
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -10,7 +10,6 @@ if str(SRC) not in sys.path:
 from vacancy_monitor.adapters.weworkremotely_adapter import WeWorkRemotelyAdapter
 from vacancy_monitor.models import SearchQuery, WorkFormat
 from vacancy_monitor.sources.weworkremotely_api import parse_job_page, parse_listing_page
-
 
 SAMPLE_HTML = """
 <section class="jobs">

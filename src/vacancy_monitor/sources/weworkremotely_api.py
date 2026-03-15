@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from html import unescape
 import json
 import re
+from html import unescape
 from typing import Any
 
 import requests
-
 
 JOB_BLOCK_RE = re.compile(r'<li class="[^"]*new-listing-container[^"]*">(.*?)</li>', re.DOTALL)
 HREF_RE = re.compile(r'href="(?P<href>/remote-jobs/[^"]+)"')
