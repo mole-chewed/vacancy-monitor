@@ -7,10 +7,10 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.classifier import classify_vacancy
-from hh_monitor.models import VacancyTrack
-from hh_monitor.normalization import vacancy_from_payload
-from hh_monitor.sources.json_import import load_vacancies_from_json
+from vacancy_monitor.classifier import classify_vacancy
+from vacancy_monitor.models import VacancyTrack
+from vacancy_monitor.normalization import vacancy_from_payload
+from vacancy_monitor.sources.json_import import load_vacancies_from_json
 
 
 class ClassifierTestCase(unittest.TestCase):

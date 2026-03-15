@@ -8,17 +8,17 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.config import load_profile
-from hh_monitor.models import ApplicationRecord, ApplicationStatus, RankedVacancy, UiApplicationEntry
-from hh_monitor.scoring import analyze_vacancy
-from hh_monitor.sources.json_import import load_vacancies_from_json
-from hh_monitor.storage import Storage
+from vacancy_monitor.config import load_profile
+from vacancy_monitor.models import ApplicationRecord, ApplicationStatus, RankedVacancy, UiApplicationEntry
+from vacancy_monitor.scoring import analyze_vacancy
+from vacancy_monitor.sources.json_import import load_vacancies_from_json
+from vacancy_monitor.storage import Storage
 
 
 class StorageTestCase(unittest.TestCase):
     def test_storage_excludes_applied_and_persists_latest_ranking(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            storage = Storage(Path(temp_dir) / "hh_monitor.db")
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
             storage.init_db()
 
             vacancies = load_vacancies_from_json("data/sample_vacancies.json")
@@ -51,7 +51,7 @@ class StorageTestCase(unittest.TestCase):
 
     def test_sync_application_entries_replaces_stale_rows(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            storage = Storage(Path(temp_dir) / "hh_monitor.db")
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
             storage.init_db()
 
             storage.import_application_entries(

@@ -1,6 +1,0 @@
-# One vacancy id per line.
-# Lines starting with # are ignored.
-#
-# Example:
-# 131083362
-# 130438587

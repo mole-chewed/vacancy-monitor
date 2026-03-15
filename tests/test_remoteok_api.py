@@ -7,9 +7,9 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.adapters.remoteok_adapter import RemoteOkAdapter
-from hh_monitor.models import SearchQuery, WorkFormat
-from hh_monitor.sources.remoteok_api import RemoteOkApiError, RemoteOkClient
+from vacancy_monitor.adapters.remoteok_adapter import RemoteOkAdapter
+from vacancy_monitor.models import SearchQuery, WorkFormat
+from vacancy_monitor.sources.remoteok_api import RemoteOkApiError, RemoteOkClient
 
 
 class FakeResponse:

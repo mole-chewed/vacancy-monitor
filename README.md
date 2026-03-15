@@ -68,7 +68,7 @@ Public API boundary today:
 ├── data/
 │   └── sample_vacancies.json
 ├── src/
-│   └── hh_monitor/
+│   └── vacancy_monitor/
 │       ├── __init__.py
 │       ├── cli.py
 │       ├── config.py
@@ -102,7 +102,7 @@ PYTHONPATH=src python3 -m vacancy_monitor fetch-remotive --text "Ruby"
 PYTHONPATH=src python3 -m vacancy_monitor fetch-remoteok --text "Ruby Rails backend"
 PYTHONPATH=src python3 -m vacancy_monitor fetch-weworkremotely --url "https://weworkremotely.com/remote-ruby-on-rails-jobs"
 PYTHONPATH=src python3 -m vacancy_monitor import-ui-history --input data/sample_hh_responses.html
-PYTHONPATH=src python3 -m vacancy_monitor export-ui-history --url "https://hh.ru/applicant/negotiations" --output data/hh_responses_live.html --import-status applied
+PYTHONPATH=src python3 -m vacancy_monitor export-ui-history --url "https://hh.ru/applicant/negotiations" --output data/applications_export.html --import-status applied
 PYTHONPATH=src python3 -m vacancy_monitor export-my-applications
 PYTHONPATH=src python3 -m vacancy_monitor import-json --input data/sample_vacancies.json
 PYTHONPATH=src python3 -m vacancy_monitor rank --top 20
@@ -129,16 +129,7 @@ PYTHONPATH=src python3 -m vacancy_monitor init-db
 PYTHONPATH=src python3 -m vacancy_monitor list-searches
 ```
 
-3. Optionally add vacancy ids you never want to see again:
-
-```text
-# legacy global list, mostly useful for hh.ru
-# config/ignored_vacancy_ids.txt
-131083362
-130438587
-```
-
-Provider-specific ignore files are also supported under `config/ignored_vacancies/`:
+3. Optionally add vacancy ids you never want to see again under `config/ignored_vacancies/`:
 
 ```text
 config/ignored_vacancies/habr.txt
@@ -199,7 +190,6 @@ Notes about this flow:
 - `fetch-remotive` allows ad hoc Remotive imports without editing the profile
 - `fetch-remoteok` allows ad hoc Remote OK imports without editing the profile
 - `fetch-weworkremotely` allows ad hoc We Work Remotely imports from a specific listing page URL
-- vacancy ids listed in `config/ignored_vacancy_ids.txt` are skipped during import and excluded from ranking/report even if they already exist in SQLite
 - provider-specific ignore files in `config/ignored_vacancies/*.txt` are applied by source family
 - the Habr Career adapter uses public vacancy search pages and parses the embedded SSR JSON payload instead of brittle card scraping
 - the Habr Career adapter supports vacancy detail hydration from the public vacancy page SSR state
@@ -251,7 +241,6 @@ Copy `config/profile.example.toml` to `config/profile.toml` and adjust:
 - keyword weights
 - salary expectations
 - multi-source search groups under `[search.*]`
-- local ignored vacancy ids file under `[files].ignored_vacancy_ids_path`
 - provider-specific ignored vacancy directory under `[files].ignored_vacancy_ids_dir`
 
 Environment variables live in `.env`.
@@ -269,25 +258,18 @@ The example profile already defines:
 - `remoteok_ai_transition`
 - `ai_transition`
 - `hh.applicant_history_url`
-- `files.ignored_vacancy_ids_path`
+- `files.ignored_vacancy_ids_dir`
 
 Those are fetched in priority order via `fetch-profile`.
 
 The repository includes:
 
 - [profile.example.toml](/Users/sashah/p/hh-positions-validation/config/profile.example.toml)
-- [ignored_vacancy_ids.example.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancy_ids.example.txt)
 - [habr.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/habr.txt)
 - [hh.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/hh.txt)
 - [remotive.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/remotive.txt)
 - [remoteok.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/remoteok.txt)
 - [weworkremotely.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/weworkremotely.txt)
-
-Your local editable ignore file is:
-
-- `config/ignored_vacancy_ids.txt`
-- one vacancy id per line
-- `#` comments are allowed
 
 Provider-specific ignore files can also be added under:
 
@@ -306,7 +288,7 @@ For account-only data such as your applied-history:
 3. Import it with:
 
 ```bash
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db import-ui-history --input path/to/file.html
+PYTHONPATH=src python3 -m vacancy_monitor import-ui-history --input path/to/file.html
 ```
 
 Current UI fallback behavior:
@@ -330,19 +312,19 @@ python3 -m playwright install chromium
 2. Run a headed export and allow time for manual login:
 
 ```bash
-PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db export-my-applications \
-  --output data/hh_responses_live.html \
+PYTHONPATH=src python3 -m vacancy_monitor export-my-applications \
+  --output data/applications_export.html \
   --login-wait-seconds 120 \
-  --save-storage-state data/hh_storage_state.json \
+  --save-storage-state data/browser_storage_state.json \
   --import-status applied
 ```
 
 3. Reuse the saved session later:
 
 ```bash
-PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db export-my-applications \
-  --output data/hh_responses_live.html \
-  --storage-state data/hh_storage_state.json \
+PYTHONPATH=src python3 -m vacancy_monitor export-my-applications \
+  --output data/applications_export.html \
+  --storage-state data/browser_storage_state.json \
   --headless \
   --import-status applied
 ```
@@ -361,7 +343,7 @@ Notes:
 Generate a markdown report via OpenAI after the deterministic pipeline prepares ranked evidence:
 
 ```bash
-PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db report \
+PYTHONPATH=src python3 -m vacancy_monitor report \
   --cv-path data/Alexander_Kharitonov_CV_ENG_2026.pdf \
   --hydrate-top 20 \
   --top-apply 5 \

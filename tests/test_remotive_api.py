@@ -7,9 +7,9 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.adapters.remotive_adapter import RemotiveAdapter
-from hh_monitor.models import SearchQuery, WorkFormat
-from hh_monitor.sources.remotive_api import RemotiveApiError, RemotiveClient
+from vacancy_monitor.adapters.remotive_adapter import RemotiveAdapter
+from vacancy_monitor.models import SearchQuery, WorkFormat
+from vacancy_monitor.sources.remotive_api import RemotiveApiError, RemotiveClient
 
 
 class FakeResponse:

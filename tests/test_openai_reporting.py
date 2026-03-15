@@ -7,11 +7,11 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.config import load_profile
-from hh_monitor.models import ApplicationStatus, RankedVacancy
-from hh_monitor.openai_reporting import build_report_evidence, generate_openai_application_report
-from hh_monitor.scoring import analyze_vacancy
-from hh_monitor.sources.json_import import load_vacancies_from_json
+from vacancy_monitor.config import load_profile
+from vacancy_monitor.models import ApplicationStatus, RankedVacancy
+from vacancy_monitor.openai_reporting import build_report_evidence, generate_openai_application_report
+from vacancy_monitor.scoring import analyze_vacancy
+from vacancy_monitor.sources.json_import import load_vacancies_from_json
 
 
 class _FakeResponse:

@@ -8,8 +8,8 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.config import load_profile, vacancy_is_ignored
-from hh_monitor.normalization import vacancy_from_weworkremotely_payload
+from vacancy_monitor.config import load_profile, vacancy_is_ignored
+from vacancy_monitor.normalization import vacancy_from_weworkremotely_payload
 
 
 class ConfigTestCase(unittest.TestCase):
@@ -48,8 +48,6 @@ class ConfigTestCase(unittest.TestCase):
 
         self.assertEqual(profile.applicant_history_url, "https://simferopol.hh.ru/applicant/negotiations")
         self.assertTrue(profile.preferences.remote_only)
-        self.assertTrue(profile.ignored_vacancy_ids_path.endswith("config/ignored_vacancy_ids.example.txt"))
-        self.assertEqual(profile.ignored_vacancy_ids, frozenset())
         self.assertIn("habr", profile.ignored_vacancy_ids_by_source)
         self.assertIn("hh", profile.ignored_vacancy_ids_by_source)
         self.assertIn("remotive", profile.ignored_vacancy_ids_by_source)
@@ -63,14 +61,13 @@ class ConfigTestCase(unittest.TestCase):
         self.assertEqual(profile.defaults.report.cv_path, "data/Alexander_Kharitonov_CV_ENG_2026.pdf")
         self.assertEqual(profile.defaults.report.output_path, "data/application_report.md")
         self.assertEqual(profile.defaults.report.hydrate_top, 20)
-        self.assertEqual(profile.defaults.export_my_applications.output_path, "data/hh_applied_history.html")
-        self.assertEqual(profile.defaults.export_my_applications.storage_state_path, "data/hh_storage_state.json")
+        self.assertEqual(profile.defaults.export_my_applications.output_path, "data/applied_history.html")
+        self.assertEqual(profile.defaults.export_my_applications.storage_state_path, "data/browser_storage_state.json")
         self.assertEqual(profile.defaults.export_my_applications.login_wait_seconds, 0)
 
-    def test_profile_loads_ignored_vacancy_ids_file(self) -> None:
+    def test_profile_loads_source_specific_ignored_vacancy_ids_dir(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            (temp_path / "ignored_ids.txt").write_text("# comment\n131083362\n130438587\n", encoding="utf-8")
             ignored_dir = temp_path / "ignored_vacancies"
             ignored_dir.mkdir()
             (ignored_dir / "remoteok.txt").write_text("1130651\n", encoding="utf-8")
@@ -90,7 +87,6 @@ full_time_preferred = true
 long_term_contract_ok = true
 
 [files]
-ignored_vacancy_ids_path = "ignored_ids.txt"
 ignored_vacancy_ids_dir = "ignored_vacancies"
 
 [defaults.report]
@@ -130,7 +126,6 @@ n8n_penalty = 1
 
             profile = load_profile(temp_path / "profile.toml")
 
-        self.assertEqual(profile.ignored_vacancy_ids, frozenset({"131083362", "130438587"}))
         self.assertEqual(profile.ignored_vacancy_ids_by_source["remoteok"], frozenset({"1130651"}))
         self.assertEqual(profile.defaults.report.output_path, "data/report.md")
         self.assertEqual(profile.defaults.report.hydrate_top, 11)

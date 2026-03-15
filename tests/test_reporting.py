@@ -12,15 +12,15 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.cli import _hydrate_ranked_vacancies, _ranked_vacancies, _warn_if_history_missing
-from hh_monitor.config import load_profile
-from hh_monitor.pipeline import hydrate_ranked_vacancies as pipeline_hydrate_ranked_vacancies
-from hh_monitor.models import ApplicationStatus, RankedVacancy, WorkFormat
-from hh_monitor.normalization import vacancy_from_payload
-from hh_monitor.reporting import build_application_report_markdown
-from hh_monitor.scoring import analyze_vacancy
-from hh_monitor.sources.json_import import load_vacancies_from_json
-from hh_monitor.storage import Storage
+from vacancy_monitor.cli import _hydrate_ranked_vacancies, _ranked_vacancies, _warn_if_history_missing
+from vacancy_monitor.config import load_profile
+from vacancy_monitor.pipeline import hydrate_ranked_vacancies as pipeline_hydrate_ranked_vacancies
+from vacancy_monitor.models import ApplicationStatus, RankedVacancy, WorkFormat
+from vacancy_monitor.normalization import vacancy_from_payload
+from vacancy_monitor.reporting import build_application_report_markdown
+from vacancy_monitor.scoring import analyze_vacancy
+from vacancy_monitor.sources.json_import import load_vacancies_from_json
+from vacancy_monitor.storage import Storage
 
 
 class ReportingTestCase(unittest.TestCase):
@@ -47,7 +47,7 @@ class ReportingTestCase(unittest.TestCase):
 
     def test_ranked_vacancies_filter_to_remote_only(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            storage = Storage(Path(temp_dir) / "hh_monitor.db")
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
             storage.init_db()
             storage.upsert_vacancies(load_vacancies_from_json("data/sample_vacancies.json"))
 
@@ -59,7 +59,7 @@ class ReportingTestCase(unittest.TestCase):
 
     def test_ranked_vacancies_can_filter_to_single_source_family(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            storage = Storage(Path(temp_dir) / "hh_monitor.db")
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
             storage.init_db()
             storage.upsert_vacancies(
                 [
@@ -101,19 +101,21 @@ class ReportingTestCase(unittest.TestCase):
         self.assertEqual(len(ranked), 1)
         self.assertEqual(ranked[0].vacancy.external_id, "hh-ruby-1")
 
-    def test_ranked_vacancies_exclude_ignored_ids_file(self) -> None:
+    def test_ranked_vacancies_exclude_ignored_ids_dir(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            storage = Storage(temp_path / "hh_monitor.db")
+            storage = Storage(temp_path / "vacancy_monitor.db")
             storage.init_db()
             storage.upsert_vacancies(load_vacancies_from_json("data/sample_vacancies.json"))
-            (temp_path / "ignored_ids.txt").write_text("genai-backend-001\n", encoding="utf-8")
             (temp_path / "profile.toml").write_text(
                 Path("config/profile.example.toml")
                 .read_text(encoding="utf-8")
-                .replace('ignored_vacancy_ids_path = "ignored_vacancy_ids.example.txt"', 'ignored_vacancy_ids_path = "ignored_ids.txt"'),
+                .replace('ignored_vacancy_ids_dir = "ignored_vacancies.example"', 'ignored_vacancy_ids_dir = "ignored_vacancies"'),
                 encoding="utf-8",
             )
+            ignored_dir = temp_path / "ignored_vacancies"
+            ignored_dir.mkdir()
+            (ignored_dir / "json_import.txt").write_text("genai-backend-001\n", encoding="utf-8")
 
             ranked = _ranked_vacancies(storage, str(temp_path / "profile.toml"), excluded=set())
 
@@ -121,7 +123,7 @@ class ReportingTestCase(unittest.TestCase):
 
     def test_ranked_vacancies_exclude_archived_hh_items_already_in_storage(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            storage = Storage(Path(temp_dir) / "hh_monitor.db")
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
             storage.init_db()
             storage.upsert_vacancies(
                 [
@@ -163,7 +165,7 @@ class ReportingTestCase(unittest.TestCase):
 
     def test_hydrate_ranked_vacancies_refreshes_shortlist_details(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            storage = Storage(Path(temp_dir) / "hh_monitor.db")
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
             storage.init_db()
             storage.upsert_vacancies(
                 [
@@ -218,7 +220,7 @@ class ReportingTestCase(unittest.TestCase):
 
     def test_pipeline_hydration_skips_unsupported_adapters_without_warning(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            storage = Storage(Path(temp_dir) / "hh_monitor.db")
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
             storage.init_db()
             vacancy = vacancy_from_payload(
                 {
@@ -247,7 +249,7 @@ class ReportingTestCase(unittest.TestCase):
                 def normalize(self, raw_item, raw_details=None):
                     raise AssertionError("normalize should not be called")
 
-            with patch("hh_monitor.pipeline.LOGGER.warning") as warning_mock:
+            with patch("vacancy_monitor.pipeline.LOGGER.warning") as warning_mock:
                 hydrated = pipeline_hydrate_ranked_vacancies(
                     ranked,
                     adapters={"weworkremotely": UnsupportedAdapter()},
@@ -262,7 +264,7 @@ class ReportingTestCase(unittest.TestCase):
 
     def test_warn_if_history_missing_when_excluding_applied_statuses(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            storage = Storage(Path(temp_dir) / "hh_monitor.db")
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
             storage.init_db()
             stream = io.StringIO()
             with redirect_stderr(stream):

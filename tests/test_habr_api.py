@@ -7,9 +7,9 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.adapters.habr_adapter import HabrCareerAdapter
-from hh_monitor.models import SearchQuery
-from hh_monitor.sources.habr_api import parse_job_page, parse_listing_page
+from vacancy_monitor.adapters.habr_adapter import HabrCareerAdapter
+from vacancy_monitor.models import SearchQuery
+from vacancy_monitor.sources.habr_api import parse_job_page, parse_listing_page
 
 
 SAMPLE_LISTING_HTML = """

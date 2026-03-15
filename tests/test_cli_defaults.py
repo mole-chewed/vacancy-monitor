@@ -7,8 +7,8 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.cli import _resolve_export_my_applications_args, _resolve_report_args, build_parser
-from hh_monitor.config import load_profile
+from vacancy_monitor.cli import _resolve_export_my_applications_args, _resolve_report_args, build_parser
+from vacancy_monitor.config import load_profile
 
 
 class CliDefaultsTestCase(unittest.TestCase):
@@ -66,8 +66,8 @@ class CliDefaultsTestCase(unittest.TestCase):
 
         resolved = _resolve_export_my_applications_args(args, profile)
 
-        self.assertEqual(resolved.output, "data/hh_applied_history.html")
-        self.assertEqual(resolved.storage_state, "data/hh_storage_state.json")
+        self.assertEqual(resolved.output, "data/applied_history.html")
+        self.assertEqual(resolved.storage_state, "data/browser_storage_state.json")
         self.assertEqual(resolved.login_wait_seconds, 0)
         self.assertEqual(resolved.import_status, "applied")
 

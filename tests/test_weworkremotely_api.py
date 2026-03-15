@@ -7,9 +7,9 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.adapters.weworkremotely_adapter import WeWorkRemotelyAdapter
-from hh_monitor.models import SearchQuery, WorkFormat
-from hh_monitor.sources.weworkremotely_api import parse_job_page, parse_listing_page
+from vacancy_monitor.adapters.weworkremotely_adapter import WeWorkRemotelyAdapter
+from vacancy_monitor.models import SearchQuery, WorkFormat
+from vacancy_monitor.sources.weworkremotely_api import parse_job_page, parse_listing_page
 
 
 SAMPLE_HTML = """

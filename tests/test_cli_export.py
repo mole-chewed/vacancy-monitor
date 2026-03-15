@@ -10,14 +10,14 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.cli import main
-from hh_monitor.ui.playwright_exporter import PlaywrightUnavailableError
+from vacancy_monitor.cli import main
+from vacancy_monitor.ui.playwright_exporter import PlaywrightUnavailableError
 
 
 class CliExportTestCase(unittest.TestCase):
     def test_export_ui_history_returns_error_when_playwright_is_unavailable(self) -> None:
         with patch(
-            "hh_monitor.cli.export_hh_page",
+            "vacancy_monitor.cli.export_hh_page",
             side_effect=PlaywrightUnavailableError("Playwright is not installed"),
         ):
             with redirect_stderr(io.StringIO()):
@@ -41,7 +41,7 @@ class CliExportTestCase(unittest.TestCase):
             captured["sync_missing"] = args.sync_missing
             return 0
 
-        with patch("hh_monitor.cli.export_ui_history_command", side_effect=fake_export_command):
+        with patch("vacancy_monitor.cli.export_ui_history_command", side_effect=fake_export_command):
             exit_code = main(
                 [
                     "export-my-applications",
@@ -64,7 +64,7 @@ class CliExportTestCase(unittest.TestCase):
             captured["sync_missing"] = args.sync_missing
             return 0
 
-        with patch("hh_monitor.cli.export_ui_history_command", side_effect=fake_export_command):
+        with patch("vacancy_monitor.cli.export_ui_history_command", side_effect=fake_export_command):
             exit_code = main(
                 [
                     "export-my-applications",

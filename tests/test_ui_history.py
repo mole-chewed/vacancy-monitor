@@ -8,9 +8,9 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.models import ApplicationStatus
-from hh_monitor.storage import Storage
-from hh_monitor.ui.history_import import (
+from vacancy_monitor.models import ApplicationStatus
+from vacancy_monitor.storage import Storage
+from vacancy_monitor.ui.history_import import (
     load_ui_application_entries,
     parse_application_entries_from_html,
     parse_application_entries_from_json,
@@ -94,7 +94,7 @@ class UiHistoryImportTestCase(unittest.TestCase):
 
     def test_storage_import_creates_placeholders_and_history(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            storage = Storage(Path(temp_dir) / "hh_monitor.db")
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
             storage.init_db()
 
             entries = load_ui_application_entries("data/sample_hh_responses.html")

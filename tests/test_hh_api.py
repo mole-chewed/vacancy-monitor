@@ -7,8 +7,8 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.models import SearchQuery
-from hh_monitor.sources.hh_api import HeadHunterApiError, HeadHunterClient
+from vacancy_monitor.models import SearchQuery
+from vacancy_monitor.sources.hh_api import HeadHunterApiError, HeadHunterClient
 
 
 class FakeResponse:

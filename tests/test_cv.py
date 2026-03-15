@@ -8,7 +8,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from hh_monitor.cv import CvExtractionError, extract_cv_text
+from vacancy_monitor.cv import CvExtractionError, extract_cv_text
 
 
 class CvTestCase(unittest.TestCase):
