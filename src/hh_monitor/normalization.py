@@ -250,3 +250,66 @@ def vacancy_from_remotive_payload(payload: dict[str, Any], source: str = "remoti
         normalized_text=normalize_for_match(combined_text),
         source_metadata=payload,
     )
+
+
+def vacancy_from_habr_payload(payload: dict[str, Any], source: str = "habr_html") -> NormalizedVacancy:
+    title = normalize_text(payload.get("title"))
+    company_data = payload.get("company") or {}
+    company = normalize_text(company_data.get("title") if isinstance(company_data, dict) else str(company_data))
+    salary = payload.get("salary") or {}
+    if not isinstance(salary, dict):
+        salary = {}
+    skills = [
+        normalize_text(skill.get("title") if isinstance(skill, dict) else str(skill))
+        for skill in (payload.get("skills") or [])
+        if normalize_text(skill.get("title") if isinstance(skill, dict) else str(skill))
+    ]
+    divisions = [
+        normalize_text(division.get("title") if isinstance(division, dict) else str(division))
+        for division in (payload.get("divisions") or [])
+        if normalize_text(division.get("title") if isinstance(division, dict) else str(division))
+    ]
+    locations = [
+        normalize_text(location.get("title") if isinstance(location, dict) else str(location))
+        for location in (payload.get("locations") or [])
+        if normalize_text(location.get("title") if isinstance(location, dict) else str(location))
+    ]
+    remote = bool(payload.get("remoteWork"))
+    location = "Remote" if remote and not locations else ", ".join(locations) if locations else normalize_text(
+        payload.get("location") or payload.get("humanCityNames") or payload.get("shortGeo")
+    )
+    description = normalize_text(payload.get("description") or payload.get("bannerDescription"))
+    employment = normalize_text(payload.get("employmentType") or payload.get("employment"))
+    qualification = normalize_text(payload.get("qualification"))
+    published = payload.get("publishedDate") or {}
+    published_at = normalize_text(published.get("date") if isinstance(published, dict) else str(published)) or None
+    requirements = " ".join(part for part in [" ".join(divisions), " ".join(skills)] if part).strip()
+    combined_text = " ".join(
+        part
+        for part in [title, company, location, description, requirements, " ".join(skills), " ".join(divisions), qualification]
+        if part
+    )
+
+    return NormalizedVacancy(
+        external_id=f"habr:{payload.get('id')}",
+        source=source,
+        title=title or "Unknown title",
+        company=company or "Unknown company",
+        url=payload.get("url"),
+        location=location or "Remote",
+        remote_type=detect_work_format("remote" if remote else "", location, description, requirements),
+        employment_type=employment or "Unknown",
+        salary_from=salary.get("from") if isinstance(salary.get("from"), int) else None,
+        salary_to=salary.get("to") if isinstance(salary.get("to"), int) else None,
+        salary_currency=normalize_text(str(salary.get("currency") or "")).upper() or None,
+        salary_gross=None,
+        published_at=published_at,
+        description_raw=description,
+        requirements=requirements or description,
+        skills_raw=skills + [item for item in divisions if item not in skills],
+        language_requirements=[],
+        seniority=classify_seniority(title, f"{qualification} {description}".strip()),
+        track=VacancyTrack.OTHER,
+        normalized_text=normalize_for_match(combined_text),
+        source_metadata=payload,
+    )

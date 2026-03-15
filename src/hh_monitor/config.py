@@ -76,6 +76,8 @@ class CandidateProfile:
 class AppSettings:
     db_path: Path
     log_level: str
+    habr_base_url: str
+    habr_user_agent: str
     hh_api_base_url: str
     hh_user_agent: str
     hh_api_token: str | None
@@ -119,6 +121,9 @@ def load_settings(env_path: str | Path = ".env") -> AppSettings:
     return AppSettings(
         db_path=db_path,
         log_level=(_env_get("APP_LOG_LEVEL", "INFO", env_file) or "INFO").upper(),
+        habr_base_url=_env_get("HABR_BASE_URL", "https://career.habr.com", env_file) or "https://career.habr.com",
+        habr_user_agent=_env_get("HABR_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file)
+        or "hh-positions-validation/0.1 (+local-cli)",
         hh_api_base_url=_env_get("HH_API_BASE_URL", "https://api.hh.ru", env_file) or "https://api.hh.ru",
         hh_user_agent=_env_get("HH_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file)
         or "hh-positions-validation/0.1 (+local-cli)",

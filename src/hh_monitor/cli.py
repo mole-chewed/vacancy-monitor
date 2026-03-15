@@ -39,6 +39,13 @@ def build_parser() -> argparse.ArgumentParser:
     import_json.add_argument("--input", required=True, help="Path to source JSON/JSONL file")
     import_json.add_argument("--source", default="json_import", help="Logical source name")
 
+    fetch_habr = subparsers.add_parser("fetch-habr", help="Fetch vacancies from Habr Career public search")
+    fetch_habr.add_argument("--text", required=True, help="Search text")
+    fetch_habr.add_argument("--per-page", type=int, default=25, help="Items per page")
+    fetch_habr.add_argument("--pages", type=int, default=1, help="Number of pages to fetch")
+    fetch_habr.add_argument("--only-with-salary", action="store_true", help="Filter to vacancies with salary")
+    fetch_habr.add_argument("--dry-run", action="store_true", help="Print the configured request without calling Habr")
+
     fetch_hh = subparsers.add_parser("fetch-hh", help="Fetch vacancies from hh.ru public API")
     fetch_hh.add_argument("--text", required=True, help="Search text")
     fetch_hh.add_argument("--per-page", type=int, default=20, help="Items per page")
@@ -258,6 +265,36 @@ def fetch_hh_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def fetch_habr_command(args: argparse.Namespace) -> int:
+    from hh_monitor.models import SearchQuery
+    from hh_monitor.sources.habr_api import HabrCareerClient
+
+    settings = load_settings(args.env_file)
+    configure_logging(settings.log_level)
+    profile = load_profile(args.config)
+    query = SearchQuery(
+        source="habr",
+        name="ad_hoc",
+        text=args.text,
+        per_page=args.per_page,
+        pages=args.pages,
+        only_with_salary=args.only_with_salary,
+    )
+    if args.dry_run:
+        client = HabrCareerClient(base_url=settings.habr_base_url, user_agent=settings.habr_user_agent)
+        print(f"Habr Career request plan for {query.name}:")
+        for page in range(1, max(query.pages, 1) + 1):
+            print(client.build_search_preview(query, page))
+        return 0
+
+    storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
+    storage.init_db()
+    adapters = build_adapter_registry(settings)
+    inserted, _, _ = fetch_search_queries(adapters, [query], profile=profile, storage=storage)
+    print(f"Fetched and saved {inserted} vacancies from Habr Career")
+    return 0
+
+
 def fetch_remoteok_command(args: argparse.Namespace) -> int:
     from hh_monitor.models import SearchQuery
 
@@ -327,6 +364,7 @@ def fetch_weworkremotely_command(args: argparse.Namespace) -> int:
 
 
 def list_searches_command(args: argparse.Namespace) -> int:
+    settings = load_settings(args.env_file)
     profile = load_profile(args.config)
     if profile.ignored_vacancy_ids_path:
         print(f"Ignored vacancy ids: {len(profile.ignored_vacancy_ids)} | file={profile.ignored_vacancy_ids_path}")
@@ -385,7 +423,16 @@ def fetch_profile_command(args: argparse.Namespace) -> int:
     if args.dry_run:
         for query in queries:
             print(f"{query.source}:{query.name} ({query.label}):")
-            if query.source == "hh":
+            if query.source == "habr":
+                from hh_monitor.sources.habr_api import HabrCareerClient
+
+                client = HabrCareerClient(base_url=settings.habr_base_url, user_agent=settings.habr_user_agent)
+                preview_pages = query.pages if not query.fetch_all else 3
+                for page in range(1, max(preview_pages, 1) + 1):
+                    print(f"    {client.build_search_preview(query, page)}")
+                if query.fetch_all:
+                    print("    ... fetch_all=true, will continue until Habr pages are exhausted")
+            elif query.source == "hh":
                 preview_pages = query.pages if not query.fetch_all else 3
                 for page in range(preview_pages):
                     params = query.to_params()
@@ -750,6 +797,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "import-json":
         return import_json_command(args)
+    if args.command == "fetch-habr":
+        return fetch_habr_command(args)
     if args.command == "fetch-hh":
         return fetch_hh_command(args)
     if args.command == "fetch-remoteok":

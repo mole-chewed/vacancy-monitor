@@ -1,0 +1,4 @@
+# One Habr vacancy id per line.
+# Prefix is optional; both forms are accepted.
+# 1000165249
+# habr:1000165249

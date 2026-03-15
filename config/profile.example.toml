@@ -89,6 +89,16 @@ schedule = "remote"
 detailed = false
 order_by = "publication_time"
 
+[search.habr_ruby_primary]
+enabled = true
+source = "habr"
+priority = 13
+label = "Habr Ruby Primary"
+text = "Ruby разработчик"
+per_page = 25
+pages = 1
+fetch_all = true
+
 [search.remoteok_ruby_primary]
 enabled = true
 source = "remoteok"
@@ -137,5 +147,15 @@ priority = 16
 label = "Remotive AI Transition"
 text = "((LLM OR RAG OR OpenAI OR Anthropic OR GenAI) AND (backend OR integrations OR API OR platform))"
 per_page = 100
+pages = 1
+fetch_all = true
+
+[search.habr_ai_transition]
+enabled = true
+source = "habr"
+priority = 18
+label = "Habr AI Transition"
+text = "LLM backend"
+per_page = 25
 pages = 1
 fetch_all = true

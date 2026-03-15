@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from hh_monitor.adapters.base import BaseAdapter
+from hh_monitor.adapters.habr_adapter import HabrCareerAdapter
 from hh_monitor.adapters.hh_adapter import HHAdapter
 from hh_monitor.adapters.linkedin_adapter import LinkedInAdapter
 from hh_monitor.adapters.remotive_adapter import RemotiveAdapter
@@ -11,6 +12,7 @@ from hh_monitor.adapters.weworkremotely_adapter import WeWorkRemotelyAdapter
 from hh_monitor.config import CandidateProfile, source_family, vacancy_is_ignored
 from hh_monitor.models import ApplicationStatus, RankedVacancy, SearchQuery
 from hh_monitor.ranking import build_ranked_vacancies
+from hh_monitor.sources.habr_api import HabrCareerApiError, HabrCareerClient
 from hh_monitor.sources.hh_api import HeadHunterApiError, HeadHunterClient
 from hh_monitor.sources.remotive_api import RemotiveApiError, RemotiveClient
 from hh_monitor.sources.remoteok_api import RemoteOkApiError, RemoteOkClient
@@ -23,6 +25,12 @@ LOGGER = logging.getLogger(__name__)
 
 def build_adapter_registry(settings) -> dict[str, BaseAdapter]:
     return {
+        "habr": HabrCareerAdapter(
+            HabrCareerClient(
+                base_url=getattr(settings, "habr_base_url", "https://career.habr.com"),
+                user_agent=getattr(settings, "habr_user_agent", settings.hh_user_agent),
+            )
+        ),
         "hh": HHAdapter(
             HeadHunterClient(
                 base_url=settings.hh_api_base_url,
@@ -95,6 +103,7 @@ def hydrate_ranked_vacancies(
         try:
             payload = adapter.fetch_details(item.vacancy.external_id, raw_item=item.vacancy.source_metadata)
         except (
+            HabrCareerApiError,
             HeadHunterApiError,
             RemoteOkApiError,
             RemotiveApiError,

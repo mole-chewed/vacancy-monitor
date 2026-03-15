@@ -23,6 +23,7 @@ Core modules:
 - `ranking.py`: source-agnostic ranked list construction
 - `pipeline.py`: source adapter registry and multi-source orchestration
 - `storage.py`: SQLite schema, persistence, application history, ranking runs
+- `sources/habr_api.py`: Habr Career public search ingestion
 - `sources/hh_api.py`: hh.ru search ingestion
 - `sources/remotive_api.py`: Remotive public API ingestion
 - `sources/remoteok_api.py`: Remote OK public API ingestion
@@ -32,6 +33,7 @@ Core modules:
 
 Public API boundary today:
 
+- supported: public Habr Career vacancy search and vacancy details
 - supported: public hh.ru vacancy search and vacancy details
 - supported: public Remotive job feed
 - supported: public Remote OK job feed
@@ -81,6 +83,7 @@ PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db init-db
 PYTHONPATH=src python -m hh_monitor.cli list-searches
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile --source hh
+PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-habr --text "Ruby разработчик"
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-hh --text "GenAI backend"
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-remotive --text "Ruby"
 PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-remoteok --text "Ruby Rails backend"
@@ -125,6 +128,7 @@ PYTHONPATH=src python3 -m hh_monitor.cli list-searches
 Provider-specific ignore files are also supported under `config/ignored_vacancies/`:
 
 ```text
+config/ignored_vacancies/habr.txt
 config/ignored_vacancies/hh.txt
 config/ignored_vacancies/remotive.txt
 config/ignored_vacancies/remoteok.txt
@@ -147,14 +151,16 @@ This now runs every `[search.*]` block from `config/profile.toml`.
 The shipped profile includes:
 
 - hh.ru Ruby queries
+- Habr Career Ruby queries
 - We Work Remotely Ruby queries
 - Remotive Ruby queries
 - Remotive AI transition queries
+- Habr Career AI transition queries
 - hh.ru AI queries
 - Remote OK Ruby queries
 - Remote OK AI transition queries
 
-HH queries can exhaust all result pages. Remotive and Remote OK load the current public feed and apply the configured query text locally. We Work Remotely currently ingests the public Ruby on Rails listing page directly.
+HH and Habr queries can exhaust all result pages. Remotive and Remote OK load the current public feed and apply the configured query text locally. We Work Remotely currently ingests the public Ruby on Rails listing page directly.
 After that, the `report` command performs a second-stage hydration for shortlisted vacancies where the adapter supports detail fetches.
 
 5. Refresh your already-applied vacancies from hh.ru UI so they are excluded from ranking:
@@ -183,12 +189,16 @@ Notes about this flow:
 
 - `fetch-profile` pulls vacancies from every configured source adapter using the search groups in `config/profile.toml`
 - `fetch-profile --source hh` runs only the HH.ru queries from the profile
+- `fetch-profile --source habr` runs only the Habr Career queries from the profile
 - `fetch-hh-profile` remains as a compatibility alias, but it now routes through the same multi-source fetch pipeline
+- `fetch-habr` allows ad hoc Habr Career imports without editing the profile
 - `fetch-remotive` allows ad hoc Remotive imports without editing the profile
 - `fetch-remoteok` allows ad hoc Remote OK imports without editing the profile
 - `fetch-weworkremotely` allows ad hoc We Work Remotely imports from a specific listing page URL
 - vacancy ids listed in `config/ignored_vacancy_ids.txt` are skipped during import and excluded from ranking/report even if they already exist in SQLite
 - provider-specific ignore files in `config/ignored_vacancies/*.txt` are applied by source family
+- the Habr Career adapter uses public vacancy search pages and parses the embedded SSR JSON payload instead of brittle card scraping
+- the Habr Career adapter supports vacancy detail hydration from the public vacancy page SSR state
 - the broad hh.ru profile searches exhaust all result pages instead of stopping at `pages = 2`
 - the Remotive adapter uses the public API feed and currently reuses feed payloads for detail hydration
 - the Remote OK adapter keeps source collection public and deterministic; it does not scrape browser pages
@@ -225,9 +235,11 @@ Environment variables live in `.env`.
 The example profile already defines:
 
 - `ruby_primary`
+- `habr_ruby_primary`
 - `weworkremotely_ruby_primary`
 - `remotive_ruby_primary`
 - `remoteok_ruby_primary`
+- `habr_ai_transition`
 - `remotive_ai_transition`
 - `ai_primary`
 - `remoteok_ai_transition`
@@ -241,6 +253,7 @@ The repository includes:
 
 - [profile.example.toml](/Users/sashah/p/hh-positions-validation/config/profile.example.toml)
 - [ignored_vacancy_ids.example.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancy_ids.example.txt)
+- [habr.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/habr.txt)
 - [hh.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/hh.txt)
 - [remotive.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/remotive.txt)
 - [remoteok.txt](/Users/sashah/p/hh-positions-validation/config/ignored_vacancies.example/remoteok.txt)
@@ -254,6 +267,7 @@ Your local editable ignore file is:
 
 Provider-specific ignore files can also be added under:
 
+- `config/ignored_vacancies/habr.txt`
 - `config/ignored_vacancies/hh.txt`
 - `config/ignored_vacancies/remotive.txt`
 - `config/ignored_vacancies/remoteok.txt`
