@@ -1,6 +1,19 @@
-# Multi-Source Vacancy Monitor
+# Vacancy Monitor
 
 Python CLI application for importing vacancies from multiple sources, normalizing them into one schema, ranking Ruby-first, excluding already-applied roles, and saving results locally in SQLite.
+
+Recommended public entrypoint:
+
+```bash
+PYTHONPATH=src python3 -m vacancy_monitor --help
+```
+
+If you install it as a package:
+
+```bash
+pip install -e .[dev]
+vacancy-monitor --help
+```
 
 ## Why this shape
 
@@ -79,25 +92,25 @@ Public API boundary today:
 ## Main Commands
 
 ```bash
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db init-db
-PYTHONPATH=src python -m hh_monitor.cli list-searches
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile --source hh
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-habr --text "Ruby разработчик"
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-hh --text "GenAI backend"
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-remotive --text "Ruby"
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-remoteok --text "Ruby Rails backend"
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db fetch-weworkremotely --url "https://weworkremotely.com/remote-ruby-on-rails-jobs"
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db import-ui-history --input data/sample_hh_responses.html
-PYTHONPATH=src python -m hh_monitor.cli export-ui-history --url "https://hh.ru/applicant/negotiations" --output data/hh_responses_live.html --import-status applied
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db export-my-applications --output data/hh_applied_history.html --import-status applied
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db import-json --input data/sample_vacancies.json
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db rank --top 20
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db rank --source hh --top 20
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db report --output data/application_report.md
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db report --source hh --output data/application_report.md
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db mark --vacancy-id genai-backend-001 --status applied
-PYTHONPATH=src python -m hh_monitor.cli --db-path data/hh_monitor.db history
+PYTHONPATH=src python3 -m vacancy_monitor init-db
+PYTHONPATH=src python3 -m vacancy_monitor list-searches
+PYTHONPATH=src python3 -m vacancy_monitor fetch-profile
+PYTHONPATH=src python3 -m vacancy_monitor fetch-profile --source hh
+PYTHONPATH=src python3 -m vacancy_monitor fetch-habr --text "Ruby разработчик"
+PYTHONPATH=src python3 -m vacancy_monitor fetch-hh --text "GenAI backend"
+PYTHONPATH=src python3 -m vacancy_monitor fetch-remotive --text "Ruby"
+PYTHONPATH=src python3 -m vacancy_monitor fetch-remoteok --text "Ruby Rails backend"
+PYTHONPATH=src python3 -m vacancy_monitor fetch-weworkremotely --url "https://weworkremotely.com/remote-ruby-on-rails-jobs"
+PYTHONPATH=src python3 -m vacancy_monitor import-ui-history --input data/sample_hh_responses.html
+PYTHONPATH=src python3 -m vacancy_monitor export-ui-history --url "https://hh.ru/applicant/negotiations" --output data/hh_responses_live.html --import-status applied
+PYTHONPATH=src python3 -m vacancy_monitor export-my-applications
+PYTHONPATH=src python3 -m vacancy_monitor import-json --input data/sample_vacancies.json
+PYTHONPATH=src python3 -m vacancy_monitor rank --top 20
+PYTHONPATH=src python3 -m vacancy_monitor rank --source hh --top 20
+PYTHONPATH=src python3 -m vacancy_monitor report
+PYTHONPATH=src python3 -m vacancy_monitor report --source hh
+PYTHONPATH=src python3 -m vacancy_monitor mark --vacancy-id genai-backend-001 --status applied
+PYTHONPATH=src python3 -m vacancy_monitor history
 ```
 
 ## End-to-End Workflow
@@ -107,13 +120,13 @@ Run the application in this order when you want fresh data and a new report:
 1. Initialize the database once:
 
 ```bash
-PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db init-db
+PYTHONPATH=src python3 -m vacancy_monitor init-db
 ```
 
 2. Inspect the configured multi-source searches:
 
 ```bash
-PYTHONPATH=src python3 -m hh_monitor.cli list-searches
+PYTHONPATH=src python3 -m vacancy_monitor list-searches
 ```
 
 3. Optionally add vacancy ids you never want to see again:
@@ -138,13 +151,13 @@ config/ignored_vacancies/weworkremotely.txt
 4. Pull fresh vacancies from all configured source adapters:
 
 ```bash
-PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile
+PYTHONPATH=src python3 -m vacancy_monitor fetch-profile
 ```
 
 To run against one provider only, use `--source`, for example HH.ru only:
 
 ```bash
-PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db fetch-profile --source hh
+PYTHONPATH=src python3 -m vacancy_monitor fetch-profile --source hh
 ```
 
 This now runs every `[search.*]` block from `config/profile.toml`.
@@ -166,23 +179,13 @@ After that, the `report` command performs a second-stage hydration for shortlist
 5. Refresh your already-applied vacancies from hh.ru UI so they are excluded from ranking:
 
 ```bash
-PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db export-my-applications \
-  --output data/hh_applied_history.html \
-  --storage-state data/hh_storage_state.json \
-  --login-wait-seconds 0 \
-  --import-status applied
+PYTHONPATH=src python3 -m vacancy_monitor export-my-applications
 ```
 
 6. Generate the final OpenAI report from the local DB, your profile config, and your CV PDF:
 
 ```bash
-PYTHONPATH=src python3 -m hh_monitor.cli --db-path data/hh_monitor.db report \
-  --cv-path data/Alexander_Kharitonov_CV_ENG_2026.pdf \
-  --hydrate-top 20 \
-  --top-apply 5 \
-  --top-maybe 5 \
-  --top-skip 2 \
-  --output data/application_report.md
+PYTHONPATH=src python3 -m vacancy_monitor report
 ```
 
 Notes about this flow:
@@ -191,6 +194,7 @@ Notes about this flow:
 - `fetch-profile --source hh` runs only the HH.ru queries from the profile
 - `fetch-profile --source habr` runs only the Habr Career queries from the profile
 - `fetch-hh-profile` remains as a compatibility alias, but it now routes through the same multi-source fetch pipeline
+- `export-my-applications` and `report` now read their default output paths and limits from `config/profile.toml`
 - `fetch-habr` allows ad hoc Habr Career imports without editing the profile
 - `fetch-remotive` allows ad hoc Remotive imports without editing the profile
 - `fetch-remoteok` allows ad hoc Remote OK imports without editing the profile
@@ -212,10 +216,30 @@ Notes about this flow:
 - explicit geography restrictions like `US only` or `US or Canada` are penalized so they do not crowd out Russia-compatible remote roles
 - ML research, model-training, computer-vision, diffusion, architect, Python-title-heavy, and automation-only roles are deterministically excluded before report generation
 
-For package imports without installation:
+For local development without installation:
 
 ```bash
-PYTHONPATH=src python -m hh_monitor.cli --help
+PYTHONPATH=src python3 -m vacancy_monitor --help
+```
+
+## Development
+
+Install editable mode with dev tools:
+
+```bash
+pip install -e .[dev]
+```
+
+Run tests:
+
+```bash
+python3 -m unittest discover -s tests -q
+```
+
+Run the linter:
+
+```bash
+ruff check .
 ```
 
 ## Configuration

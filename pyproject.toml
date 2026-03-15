@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vacancy-monitor"
+version = "0.1.0"
+description = "Multi-source vacancy monitoring and ranking CLI."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "requests==2.32.3",
+  "playwright==1.58.0",
+  "openai>=1.99.0",
+  "pypdf>=5.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.12.0",
+]
+
+[project.scripts]
+vacancy-monitor = "vacancy_monitor:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "I",
+  "B",
+  "UP",
+]

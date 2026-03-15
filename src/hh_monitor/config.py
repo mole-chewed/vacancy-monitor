@@ -56,6 +56,32 @@ class RankingPreferences:
 
 
 @dataclass(frozen=True)
+class ReportDefaults:
+    cv_path: str
+    output_path: str
+    hydrate_top: int
+    top_apply: int
+    top_maybe: int
+    top_skip: int
+    source: str | None
+
+
+@dataclass(frozen=True)
+class ExportApplicationsDefaults:
+    output_path: str
+    storage_state_path: str | None
+    save_storage_state_path: str | None
+    login_wait_seconds: int
+    import_status: str
+
+
+@dataclass(frozen=True)
+class CommandDefaults:
+    report: ReportDefaults
+    export_my_applications: ExportApplicationsDefaults
+
+
+@dataclass(frozen=True)
 class CandidateProfile:
     name: str
     summary: str
@@ -70,6 +96,7 @@ class CandidateProfile:
     ranking: RankingPreferences
     keyword_overrides: dict[str, list[str]]
     search_queries: list[SearchQuery]
+    defaults: CommandDefaults
 
 
 @dataclass(frozen=True)
@@ -122,26 +149,24 @@ def load_settings(env_path: str | Path = ".env") -> AppSettings:
         db_path=db_path,
         log_level=(_env_get("APP_LOG_LEVEL", "INFO", env_file) or "INFO").upper(),
         habr_base_url=_env_get("HABR_BASE_URL", "https://career.habr.com", env_file) or "https://career.habr.com",
-        habr_user_agent=_env_get("HABR_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file)
-        or "hh-positions-validation/0.1 (+local-cli)",
+        habr_user_agent=_env_get("HABR_USER_AGENT", "vacancy-monitor/0.1 (+local-cli)", env_file)
+        or "vacancy-monitor/0.1 (+local-cli)",
         hh_api_base_url=_env_get("HH_API_BASE_URL", "https://api.hh.ru", env_file) or "https://api.hh.ru",
-        hh_user_agent=_env_get("HH_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file)
-        or "hh-positions-validation/0.1 (+local-cli)",
+        hh_user_agent=_env_get("HH_USER_AGENT", "vacancy-monitor/0.1 (+local-cli)", env_file)
+        or "vacancy-monitor/0.1 (+local-cli)",
         hh_api_token=_env_get("HH_API_TOKEN", None, env_file),
         remotive_api_base_url=_env_get("REMOTIVE_API_BASE_URL", "https://remotive.com", env_file)
         or "https://remotive.com",
-        remotive_user_agent=_env_get("REMOTIVE_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file)
-        or "hh-positions-validation/0.1 (+local-cli)",
+        remotive_user_agent=_env_get("REMOTIVE_USER_AGENT", "vacancy-monitor/0.1 (+local-cli)", env_file)
+        or "vacancy-monitor/0.1 (+local-cli)",
         remoteok_api_base_url=_env_get("REMOTEOK_API_BASE_URL", "https://remoteok.com", env_file)
         or "https://remoteok.com",
-        remoteok_user_agent=_env_get("REMOTEOK_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file)
-        or "hh-positions-validation/0.1 (+local-cli)",
+        remoteok_user_agent=_env_get("REMOTEOK_USER_AGENT", "vacancy-monitor/0.1 (+local-cli)", env_file)
+        or "vacancy-monitor/0.1 (+local-cli)",
         weworkremotely_base_url=_env_get("WEWORKREMOTELY_BASE_URL", "https://weworkremotely.com", env_file)
         or "https://weworkremotely.com",
-        weworkremotely_user_agent=_env_get(
-            "WEWORKREMOTELY_USER_AGENT", "hh-positions-validation/0.1 (+local-cli)", env_file
-        )
-        or "hh-positions-validation/0.1 (+local-cli)",
+        weworkremotely_user_agent=_env_get("WEWORKREMOTELY_USER_AGENT", "vacancy-monitor/0.1 (+local-cli)", env_file)
+        or "vacancy-monitor/0.1 (+local-cli)",
         openai_api_key=_env_get("OPENAI_API_KEY", None, env_file),
         openai_report_model=_env_get("OPENAI_REPORT_MODEL", "gpt-5", env_file) or "gpt-5",
     )
@@ -158,6 +183,7 @@ def load_profile(config_path: str | Path = "config/profile.toml") -> CandidatePr
     preferences = data["preferences"]
     hh = data.get("hh", {})
     files = data.get("files", {})
+    defaults = data.get("defaults", {})
     ranking = data.get("ranking", {})
     salary = data["salary"]
     weights = data["weights"]
@@ -210,6 +236,7 @@ def load_profile(config_path: str | Path = "config/profile.toml") -> CandidatePr
         ),
         keyword_overrides={key: list(values) for key, values in data.get("keywords", {}).items()},
         search_queries=_load_search_queries(data.get("search", {})),
+        defaults=_load_command_defaults(defaults),
     )
 
 
@@ -296,6 +323,36 @@ def _load_search_queries(raw_search: object) -> list[SearchQuery]:
 
     queries.sort(key=lambda item: (item.priority, item.name))
     return queries
+
+
+def _load_command_defaults(raw_defaults: object) -> CommandDefaults:
+    if not isinstance(raw_defaults, dict):
+        raw_defaults = {}
+    report = raw_defaults.get("report", {})
+    export_apps = raw_defaults.get("export_my_applications", {})
+    if not isinstance(report, dict):
+        report = {}
+    if not isinstance(export_apps, dict):
+        export_apps = {}
+
+    return CommandDefaults(
+        report=ReportDefaults(
+            cv_path=_optional_str(report.get("cv_path")) or "data/Alexander_Kharitonov_CV_ENG_2026.pdf",
+            output_path=_optional_str(report.get("output_path")) or "data/application_report.md",
+            hydrate_top=int(report.get("hydrate_top", 20)),
+            top_apply=int(report.get("top_apply", 5)),
+            top_maybe=int(report.get("top_maybe", 5)),
+            top_skip=int(report.get("top_skip", 2)),
+            source=_optional_str(report.get("source")),
+        ),
+        export_my_applications=ExportApplicationsDefaults(
+            output_path=_optional_str(export_apps.get("output_path")) or "data/hh_applied_history.html",
+            storage_state_path=_optional_str(export_apps.get("storage_state_path")) or "data/hh_storage_state.json",
+            save_storage_state_path=_optional_str(export_apps.get("save_storage_state_path")),
+            login_wait_seconds=int(export_apps.get("login_wait_seconds", 0)),
+            import_status=_optional_str(export_apps.get("import_status")) or "applied",
+        ),
+    )
 
 
 def _resolve_optional_path(config_path: Path, raw_path: str | None) -> Path | None:

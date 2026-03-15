@@ -147,13 +147,13 @@ def build_parser() -> argparse.ArgumentParser:
         "export-my-applications",
         help="Export your hh.ru applications page via Playwright using configured default URL",
     )
-    export_my_apps.add_argument("--output", required=True, help="Output HTML path")
+    export_my_apps.add_argument("--output", default=None, help="Output HTML path")
     export_my_apps.add_argument("--browser", default="chromium", choices=["chromium", "firefox", "webkit"])
     export_my_apps.add_argument("--headless", action="store_true", help="Run browser headlessly")
     export_my_apps.add_argument(
         "--login-wait-seconds",
         type=int,
-        default=90,
+        default=None,
         help="Time to wait for manual login/session recovery before capture",
     )
     export_my_apps.add_argument("--timeout-seconds", type=int, default=30, help="Timeout for page operations")
@@ -180,21 +180,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     report = subparsers.add_parser("report", help="Generate a markdown application report from ranked vacancies")
-    report.add_argument("--output", default="data/application_report.md", help="Markdown report output path")
+    report.add_argument("--output", default=None, help="Markdown report output path")
     report.add_argument(
         "--cv-path",
-        default="data/Alexander_Kharitonov_CV_ENG_2026.pdf",
+        default=None,
         help="Path to the candidate CV PDF that will be sent to OpenAI together with vacancy evidence",
     )
     report.add_argument(
         "--hydrate-top",
         type=int,
-        default=80,
+        default=None,
         help="Fetch hh.ru vacancy details for the top N shortlisted vacancies before sending evidence to OpenAI",
     )
-    report.add_argument("--top-apply", type=int, default=25, help="How many apply-now vacancies to include")
-    report.add_argument("--top-maybe", type=int, default=25, help="How many manual-review vacancies to include")
-    report.add_argument("--top-skip", type=int, default=10, help="How many skip vacancies to include")
+    report.add_argument("--top-apply", type=int, default=None, help="How many apply-now vacancies to include")
+    report.add_argument("--top-maybe", type=int, default=None, help="How many manual-review vacancies to include")
+    report.add_argument("--top-skip", type=int, default=None, help="How many skip vacancies to include")
     report.add_argument(
         "--exclude-statuses",
         default="applied,ignore,rejected,interview",
@@ -611,6 +611,32 @@ def _warn_if_history_missing(storage: Storage, excluded: set[ApplicationStatus])
     )
 
 
+def _resolve_export_my_applications_args(args: argparse.Namespace, profile) -> argparse.Namespace:
+    defaults = profile.defaults.export_my_applications
+    resolved = argparse.Namespace(**vars(args))
+    resolved.output = args.output or defaults.output_path
+    resolved.storage_state = args.storage_state or defaults.storage_state_path
+    resolved.save_storage_state = args.save_storage_state or defaults.save_storage_state_path
+    resolved.login_wait_seconds = (
+        args.login_wait_seconds if args.login_wait_seconds is not None else defaults.login_wait_seconds
+    )
+    resolved.import_status = args.import_status or defaults.import_status
+    return resolved
+
+
+def _resolve_report_args(args: argparse.Namespace, profile) -> argparse.Namespace:
+    defaults = profile.defaults.report
+    resolved = argparse.Namespace(**vars(args))
+    resolved.output = args.output or defaults.output_path
+    resolved.cv_path = args.cv_path or defaults.cv_path
+    resolved.hydrate_top = args.hydrate_top if args.hydrate_top is not None else defaults.hydrate_top
+    resolved.top_apply = args.top_apply if args.top_apply is not None else defaults.top_apply
+    resolved.top_maybe = args.top_maybe if args.top_maybe is not None else defaults.top_maybe
+    resolved.top_skip = args.top_skip if args.top_skip is not None else defaults.top_skip
+    resolved.source = args.source or defaults.source
+    return resolved
+
+
 def rank_command(args: argparse.Namespace) -> int:
     storage = resolve_storage(args)
     excluded = _parse_statuses(args.exclude_statuses)
@@ -694,16 +720,17 @@ def export_ui_history_command(args: argparse.Namespace) -> int:
 
 def export_my_applications_command(args: argparse.Namespace) -> int:
     profile = load_profile(args.config)
-    target_url = args.url or profile.applicant_history_url
+    resolved_args = _resolve_export_my_applications_args(args, profile)
+    target_url = resolved_args.url or profile.applicant_history_url
     if not target_url:
         print(
             "Applicant history URL is not configured. Add [hh].applicant_history_url to your profile or pass --url.",
             file=sys.stderr,
         )
         return 1
-    export_values = vars(args).copy()
+    export_values = vars(resolved_args).copy()
     export_values["url"] = target_url
-    export_values["sync_missing"] = not args.no_sync_missing
+    export_values["sync_missing"] = not resolved_args.no_sync_missing
     export_args = argparse.Namespace(**export_values)
     return export_ui_history_command(export_args)
 
@@ -715,22 +742,23 @@ def report_command(args: argparse.Namespace) -> int:
     storage.init_db()
     excluded = _parse_statuses(args.exclude_statuses)
     _warn_if_history_missing(storage, excluded)
+    profile = load_profile(args.config)
+    resolved_args = _resolve_report_args(args, profile)
     ranked = _hydrate_ranked_vacancies(
         storage,
         config_path=args.config,
         excluded=excluded,
         settings=settings,
-        limit=args.hydrate_top,
-        source_name=args.source,
+        limit=resolved_args.hydrate_top,
+        source_name=resolved_args.source,
     )
     if ranked:
         storage.save_ranking_results(ranked)
 
-    profile = load_profile(args.config)
-    output_path = Path(args.output)
+    output_path = Path(resolved_args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        cv_text = extract_cv_text(args.cv_path)
+        cv_text = extract_cv_text(resolved_args.cv_path)
     except CvExtractionError as exc:
         print(str(exc), file=sys.stderr)
         return 1
@@ -742,9 +770,9 @@ def report_command(args: argparse.Namespace) -> int:
             profile=profile,
             cv_text=cv_text,
             ranked=ranked,
-            top_apply=args.top_apply,
-            top_maybe=args.top_maybe,
-            top_skip=args.top_skip,
+            top_apply=resolved_args.top_apply,
+            top_maybe=resolved_args.top_maybe,
+            top_skip=resolved_args.top_skip,
         )
     except (OpenAIReportingUnavailableError, OpenAIReportGenerationError) as exc:
         print(str(exc), file=sys.stderr)

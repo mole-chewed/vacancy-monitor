@@ -18,6 +18,20 @@ applicant_history_url = "https://simferopol.hh.ru/applicant/negotiations"
 ignored_vacancy_ids_path = "ignored_vacancy_ids.example.txt"
 ignored_vacancy_ids_dir = "ignored_vacancies.example"
 
+[defaults.report]
+cv_path = "data/Alexander_Kharitonov_CV_ENG_2026.pdf"
+output_path = "data/application_report.md"
+hydrate_top = 20
+top_apply = 5
+top_maybe = 5
+top_skip = 2
+
+[defaults.export_my_applications]
+output_path = "data/hh_applied_history.html"
+storage_state_path = "data/hh_storage_state.json"
+login_wait_seconds = 0
+import_status = "applied"
+
 [salary]
 currency = "RUR"
 minimum = 250000

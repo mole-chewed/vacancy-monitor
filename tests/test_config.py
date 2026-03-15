@@ -60,6 +60,12 @@ class ConfigTestCase(unittest.TestCase):
         self.assertEqual(profile.ranking.primary_track_weight, 1.35)
         self.assertEqual(profile.ranking.mixed_track_weight, 1.2)
         self.assertEqual(profile.ranking.secondary_track_weight, 1.0)
+        self.assertEqual(profile.defaults.report.cv_path, "data/Alexander_Kharitonov_CV_ENG_2026.pdf")
+        self.assertEqual(profile.defaults.report.output_path, "data/application_report.md")
+        self.assertEqual(profile.defaults.report.hydrate_top, 20)
+        self.assertEqual(profile.defaults.export_my_applications.output_path, "data/hh_applied_history.html")
+        self.assertEqual(profile.defaults.export_my_applications.storage_state_path, "data/hh_storage_state.json")
+        self.assertEqual(profile.defaults.export_my_applications.login_wait_seconds, 0)
 
     def test_profile_loads_ignored_vacancy_ids_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -87,6 +93,20 @@ long_term_contract_ok = true
 ignored_vacancy_ids_path = "ignored_ids.txt"
 ignored_vacancy_ids_dir = "ignored_vacancies"
 
+[defaults.report]
+cv_path = "data/cv.pdf"
+output_path = "data/report.md"
+hydrate_top = 11
+top_apply = 7
+top_maybe = 6
+top_skip = 2
+
+[defaults.export_my_applications]
+output_path = "data/apps.html"
+storage_state_path = "data/state.json"
+login_wait_seconds = 3
+import_status = "saved"
+
 [salary]
 currency = "RUR"
 minimum = 1
@@ -112,6 +132,11 @@ n8n_penalty = 1
 
         self.assertEqual(profile.ignored_vacancy_ids, frozenset({"131083362", "130438587"}))
         self.assertEqual(profile.ignored_vacancy_ids_by_source["remoteok"], frozenset({"1130651"}))
+        self.assertEqual(profile.defaults.report.output_path, "data/report.md")
+        self.assertEqual(profile.defaults.report.hydrate_top, 11)
+        self.assertEqual(profile.defaults.export_my_applications.output_path, "data/apps.html")
+        self.assertEqual(profile.defaults.export_my_applications.storage_state_path, "data/state.json")
+        self.assertEqual(profile.defaults.export_my_applications.import_status, "saved")
 
     def test_source_specific_ignore_matches_weworkremotely_html_source(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
