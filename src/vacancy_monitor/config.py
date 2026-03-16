@@ -371,7 +371,7 @@ def _load_command_defaults(raw_defaults: object) -> CommandDefaults:
 
     return CommandDefaults(
         report=ReportDefaults(
-            cv_path=_optional_str(report.get("cv_path")) or "data/Alexander_Kharitonov_CV_ENG_2026.pdf",
+            cv_path=_optional_str(report.get("cv_path")) or "data/candidate_cv.pdf",
             output_path=_optional_str(report.get("output_path")) or "reports/application_report.md",
             hydrate_top=int(report.get("hydrate_top", 20)),
             top_apply=int(report.get("top_apply", 5)),

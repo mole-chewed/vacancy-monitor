@@ -23,6 +23,8 @@ class CliExportTestCase(unittest.TestCase):
             with redirect_stderr(io.StringIO()):
                 exit_code = main(
                     [
+                        "--config",
+                        "config/profile.example.toml",
                         "export-ui-history",
                         "--url",
                         "https://hh.ru/applicant/negotiations",
@@ -44,6 +46,8 @@ class CliExportTestCase(unittest.TestCase):
         with patch("vacancy_monitor.cli.export_ui_history_command", side_effect=fake_export_command):
             exit_code = main(
                 [
+                    "--config",
+                    "config/profile.example.toml",
                     "export-my-applications",
                     "--output",
                     "/tmp/hh_export_test.html",
@@ -53,7 +57,7 @@ class CliExportTestCase(unittest.TestCase):
             )
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(captured["url"], "https://simferopol.hh.ru/applicant/negotiations")
+        self.assertEqual(captured["url"], "https://hh.ru/applicant/negotiations")
         self.assertTrue(captured["sync_missing"])
 
     def test_export_my_applications_can_disable_sync_missing(self) -> None:
@@ -67,6 +71,8 @@ class CliExportTestCase(unittest.TestCase):
         with patch("vacancy_monitor.cli.export_ui_history_command", side_effect=fake_export_command):
             exit_code = main(
                 [
+                    "--config",
+                    "config/profile.example.toml",
                     "export-my-applications",
                     "--output",
                     "/tmp/hh_export_test.html",

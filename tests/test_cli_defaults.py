@@ -20,7 +20,7 @@ class CliDefaultsTestCase(unittest.TestCase):
         resolved = _resolve_report_args(args, profile)
 
         self.assertEqual(resolved.output, "reports/application_report.md")
-        self.assertEqual(resolved.cv_path, "data/Alexander_Kharitonov_CV_ENG_2026.pdf")
+        self.assertEqual(resolved.cv_path, "data/candidate_cv.pdf")
         self.assertEqual(resolved.hydrate_top, 20)
         self.assertEqual(resolved.top_apply, 5)
         self.assertEqual(resolved.top_maybe, 5)

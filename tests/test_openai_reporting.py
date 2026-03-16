@@ -45,7 +45,7 @@ class OpenAIReportingTestCase(unittest.TestCase):
             )
             for vacancy in vacancies
         ]
-        cv_text = "Alexander Kharitonov CV text"
+        cv_text = "Candidate CV text"
 
         evidence = build_report_evidence(profile, cv_text, ranked)
 
@@ -77,7 +77,7 @@ class OpenAIReportingTestCase(unittest.TestCase):
             api_key="test-key",
             model="gpt-5",
             profile=profile,
-            cv_text="Alexander Kharitonov CV text",
+            cv_text="Candidate CV text",
             ranked=ranked,
             client_factory=factory,
         )
@@ -109,7 +109,7 @@ class OpenAIReportingTestCase(unittest.TestCase):
             api_key="test-key",
             model="gpt-5",
             profile=profile,
-            cv_text="Alexander Kharitonov CV text " * 1000,
+            cv_text="Candidate CV text " * 1000,
             ranked=ranked,
             top_apply=5,
             top_maybe=5,
@@ -143,7 +143,7 @@ class OpenAIReportingTestCase(unittest.TestCase):
             api_key="test-key",
             model="gpt-5",
             profile=profile,
-            cv_text="Alexander Kharitonov CV text",
+            cv_text="Candidate CV text",
             ranked=ranked,
             client_factory=factory,
         )

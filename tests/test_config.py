@@ -46,7 +46,7 @@ class ConfigTestCase(unittest.TestCase):
     def test_profile_includes_applicant_history_url(self) -> None:
         profile = load_profile("config/profile.example.toml")
 
-        self.assertEqual(profile.applicant_history_url, "https://simferopol.hh.ru/applicant/negotiations")
+        self.assertEqual(profile.applicant_history_url, "https://hh.ru/applicant/negotiations")
         self.assertTrue(profile.preferences.remote_only)
         self.assertIn("habr", profile.ignored_vacancy_ids_by_source)
         self.assertIn("hh", profile.ignored_vacancy_ids_by_source)
@@ -58,7 +58,7 @@ class ConfigTestCase(unittest.TestCase):
         self.assertEqual(profile.ranking.primary_track_weight, 1.35)
         self.assertEqual(profile.ranking.mixed_track_weight, 1.2)
         self.assertEqual(profile.ranking.secondary_track_weight, 1.0)
-        self.assertEqual(profile.defaults.report.cv_path, "data/Alexander_Kharitonov_CV_ENG_2026.pdf")
+        self.assertEqual(profile.defaults.report.cv_path, "data/candidate_cv.pdf")
         self.assertEqual(profile.defaults.report.output_path, "reports/application_report.md")
         self.assertEqual(profile.defaults.report.hydrate_top, 20)
         self.assertEqual(profile.defaults.export_my_applications.output_path, "data/applied_history.html")

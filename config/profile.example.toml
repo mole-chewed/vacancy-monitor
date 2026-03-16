@@ -1,6 +1,6 @@
 [candidate]
-name = "Senior Backend Developer"
-summary = "13+ years backend engineering, strong Ruby on Rails, PostgreSQL, Redis, Sidekiq, REST API, GraphQL, Docker, AWS. Transitioning toward GenAI backend, AI systems, AI platform, RAG, LLM integrations, automation, and agent-based systems."
+name = "Example Candidate"
+summary = "Senior backend engineer with strong Ruby, PostgreSQL, Redis, APIs, and cloud delivery experience. Interested in Ruby-first roles and pragmatic AI/backend transition opportunities."
 preferred_language = "ru"
 
 [preferences]
@@ -12,13 +12,13 @@ full_time_preferred = true
 long_term_contract_ok = true
 
 [hh]
-applicant_history_url = "https://simferopol.hh.ru/applicant/negotiations"
+applicant_history_url = "https://hh.ru/applicant/negotiations"
 
 [files]
 ignored_vacancy_ids_dir = "ignored_vacancies.example"
 
 [defaults.report]
-cv_path = "data/Alexander_Kharitonov_CV_ENG_2026.pdf"
+cv_path = "data/candidate_cv.pdf"
 output_path = "reports/application_report.md"
 hydrate_top = 20
 top_apply = 5
