@@ -1,5 +1,6 @@
 import io
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
@@ -12,9 +13,15 @@ if str(SRC) not in sys.path:
 
 from vacancy_monitor.cli import main
 from vacancy_monitor.ui.playwright_exporter import PlaywrightUnavailableError
+from vacancy_monitor.ui.playwright_exporter import _existing_storage_state_path
 
 
 class CliExportTestCase(unittest.TestCase):
+    def test_existing_storage_state_path_returns_none_when_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            missing_path = Path(temp_dir) / "missing_storage_state.json"
+            self.assertIsNone(_existing_storage_state_path(missing_path))
+
     def test_export_ui_history_returns_error_when_playwright_is_unavailable(self) -> None:
         with patch(
             "vacancy_monitor.cli.export_hh_page",

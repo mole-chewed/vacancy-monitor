@@ -73,8 +73,9 @@ def export_hh_page(
             else:
                 browser = browser_type.launch(headless=headless)
                 context_kwargs: dict[str, Any] = {}
-                if storage_state_path:
-                    context_kwargs["storage_state"] = str(Path(storage_state_path))
+                resolved_storage_state = _existing_storage_state_path(storage_state_path)
+                if resolved_storage_state:
+                    context_kwargs["storage_state"] = str(resolved_storage_state)
                 context = browser.new_context(**context_kwargs)
 
             page = context.pages[0] if context.pages else context.new_page()
@@ -164,6 +165,15 @@ def export_hh_page(
                 context.close()
             if browser is not None:
                 browser.close()
+
+
+def _existing_storage_state_path(storage_state_path: str | Path | None) -> Path | None:
+    if not storage_state_path:
+        return None
+    candidate = Path(storage_state_path)
+    if not candidate.exists():
+        return None
+    return candidate
 
 
 def _load_playwright():
