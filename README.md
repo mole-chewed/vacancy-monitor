@@ -79,6 +79,53 @@ Run `PYTHONPATH=src python3 -m vacancy_monitor --help` for the full CLI.
 5. Inspect ranking: `PYTHONPATH=src python3 -m vacancy_monitor rank --top 20`
 6. Generate the final report: `PYTHONPATH=src python3 -m vacancy_monitor report`
 
+## Daily flow
+
+Use this every day when you want fresh data from all configured providers and an updated final report.
+
+If you already have a valid `data/browser_storage_state.json`, run:
+
+```bash
+source .venv/bin/activate
+
+PYTHONPATH=src python3 -m vacancy_monitor fetch-profile
+
+PYTHONPATH=src python3 -m vacancy_monitor export-my-applications \
+  --output data/applications_export.html \
+  --storage-state data/browser_storage_state.json \
+  --headless \
+  --import-status applied
+
+PYTHONPATH=src python3 -m vacancy_monitor rank --top 20
+
+PYTHONPATH=src python3 -m vacancy_monitor report
+```
+
+If you need to log in again and refresh the saved browser session, use:
+
+```bash
+source .venv/bin/activate
+
+PYTHONPATH=src python3 -m vacancy_monitor fetch-profile
+
+PYTHONPATH=src python3 -m vacancy_monitor export-my-applications \
+  --output data/applications_export.html \
+  --login-wait-seconds 120 \
+  --save-storage-state data/browser_storage_state.json \
+  --import-status applied
+
+PYTHONPATH=src python3 -m vacancy_monitor rank --top 20
+
+PYTHONPATH=src python3 -m vacancy_monitor report
+```
+
+Notes:
+
+- `fetch-profile` pulls fresh vacancies from all enabled providers in `config/profile.toml`
+- `export-my-applications` updates hh.ru application history so already-applied roles are excluded
+- `rank --top 20` is optional, but useful as a quick review step before the final report
+- `report` reads from the local database and generates the final markdown report
+
 ## Configuration
 
 `config/profile.toml` controls:
