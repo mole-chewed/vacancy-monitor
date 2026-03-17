@@ -12,6 +12,7 @@ if str(SRC) not in sys.path:
 from vacancy_monitor.adapters.habr_adapter import HabrCareerAdapter
 from vacancy_monitor.adapters.hh_adapter import HHAdapter
 from vacancy_monitor.adapters.linkedin_adapter import LinkedInAdapter
+from vacancy_monitor.adapters.rabota1000_adapter import Rabota1000Adapter
 from vacancy_monitor.adapters.remoteok_adapter import RemoteOkAdapter
 from vacancy_monitor.adapters.remotive_adapter import RemotiveAdapter
 from vacancy_monitor.adapters.weworkremotely_adapter import WeWorkRemotelyAdapter
@@ -20,6 +21,7 @@ from vacancy_monitor.normalization import vacancy_from_payload
 from vacancy_monitor.pipeline import fetch_search_queries
 from vacancy_monitor.sources.habr_api import parse_job_page as parse_habr_job_page
 from vacancy_monitor.sources.habr_api import parse_listing_page as parse_habr_listing_page
+from vacancy_monitor.sources.rabota1000_api import parse_listing_page as parse_rabota1000_listing_page
 from vacancy_monitor.sources.weworkremotely_api import parse_job_page as parse_wwr_job_page
 from vacancy_monitor.sources.weworkremotely_api import parse_listing_page as parse_wwr_listing_page
 
@@ -38,6 +40,8 @@ class AdapterCapabilitiesTestCase(unittest.TestCase):
         self.assertTrue(HHAdapter(object()).capabilities.supports_remote_filtering)
         self.assertTrue(HabrCareerAdapter(object()).capabilities.supports_pagination)
         self.assertFalse(HabrCareerAdapter(object()).capabilities.supports_remote_filtering)
+        self.assertTrue(Rabota1000Adapter(object()).capabilities.supports_pagination)
+        self.assertTrue(Rabota1000Adapter(object()).capabilities.supports_remote_filtering)
         self.assertTrue(RemoteOkAdapter(object()).capabilities.supports_remote_filtering)
         self.assertTrue(RemotiveAdapter(object()).capabilities.supports_detail_hydration)
         self.assertTrue(WeWorkRemotelyAdapter(object()).capabilities.requires_source_url)
@@ -120,6 +124,25 @@ class ProviderFixtureParsingTestCase(unittest.TestCase):
         self.assertEqual(vacancy.external_id, "remotive:101")
         self.assertEqual(vacancy.company, "Ruby Co")
         self.assertEqual(vacancy.employment_type, "full_time")
+
+    def test_rabota1000_fixture_normalizes_to_expected_vacancy(self) -> None:
+        listing = parse_rabota1000_listing_page(_read_fixture("rabota1000_listing.html"), base_url="https://rabota1000.ru")
+
+        class FakeClient:
+            def search_jobs(self, query: SearchQuery):
+                return listing
+
+            def resolve_job_type(self, query: SearchQuery):
+                return "6" if query.schedule == "remote" else None
+
+        vacancy = Rabota1000Adapter(FakeClient()).search(
+            SearchQuery(source="rabota1000", name="rabota1000_ruby_primary", text="Ruby on Rails", schedule="remote")
+        )[0]
+
+        self.assertEqual(vacancy.external_id, "rabota1000:88633992")
+        self.assertEqual(vacancy.company, "Appbooster")
+        self.assertEqual(vacancy.salary_from, 260000)
+        self.assertEqual(vacancy.source, "rabota1000_html:rabota1000_ruby_primary")
 
     def test_weworkremotely_fixtures_parse_and_normalize(self) -> None:
         listing = parse_wwr_listing_page(_read_fixture("weworkremotely_listing.html"), base_url="https://weworkremotely.com")

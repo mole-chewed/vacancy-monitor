@@ -251,6 +251,52 @@ def vacancy_from_remotive_payload(payload: dict[str, Any], source: str = "remoti
     )
 
 
+def vacancy_from_rabota1000_payload(payload: dict[str, Any], source: str = "rabota1000_html") -> NormalizedVacancy:
+    title = normalize_text(payload.get("title"))
+    company = normalize_text(payload.get("company"))
+    location = normalize_text(payload.get("location"))
+    description = normalize_text(payload.get("snippet"))
+    salary_text = normalize_text(payload.get("salary_text"))
+    source_site = normalize_text(payload.get("source_site"))
+    query_job_type = normalize_text(payload.get("_query_job_type"))
+    salary_from, salary_to, salary_currency = _parse_rabota1000_salary(salary_text)
+    employment_type = _rabota1000_job_type_label(query_job_type) or "Unknown"
+    remote_type = (
+        WorkFormat.REMOTE
+        if query_job_type == "6"
+        else detect_work_format(employment_type, location, description, source_site)
+    )
+    combined_text = " ".join(
+        part
+        for part in [title, company, location, description, salary_text, source_site, employment_type]
+        if part
+    )
+
+    return NormalizedVacancy(
+        external_id=f"rabota1000:{payload.get('id') or title}",
+        source=source,
+        title=title or "Unknown title",
+        company=company or "Unknown company",
+        url=payload.get("url"),
+        location=location or "Unknown location",
+        remote_type=remote_type,
+        employment_type=employment_type,
+        salary_from=salary_from,
+        salary_to=salary_to,
+        salary_currency=salary_currency,
+        salary_gross=None,
+        published_at=normalize_text(payload.get("listed_at")) or None,
+        description_raw=description or title,
+        requirements=description,
+        skills_raw=[],
+        language_requirements=[],
+        seniority=classify_seniority(title, description),
+        track=VacancyTrack.OTHER,
+        normalized_text=normalize_for_match(combined_text),
+        source_metadata=payload,
+    )
+
+
 def vacancy_from_habr_payload(payload: dict[str, Any], source: str = "habr_html") -> NormalizedVacancy:
     title = normalize_text(payload.get("title"))
     company_data = payload.get("company") or {}
@@ -312,3 +358,39 @@ def vacancy_from_habr_payload(payload: dict[str, Any], source: str = "habr_html"
         normalized_text=normalize_for_match(combined_text),
         source_metadata=payload,
     )
+
+
+def _parse_rabota1000_salary(value: str) -> tuple[int | None, int | None, str | None]:
+    normalized = normalize_text(value).replace("\u202f", " ").replace("\xa0", " ")
+    if not normalized or normalized.lower() == "договорная":
+        return None, None, None
+
+    currency = None
+    lowered = normalized.lower()
+    if "руб" in lowered or "₽" in normalized:
+        currency = "RUR"
+    elif "$" in normalized:
+        currency = "USD"
+    elif "€" in normalized:
+        currency = "EUR"
+
+    numbers = [int(match.replace(" ", "")) for match in re.findall(r"\d[\d ]*", normalized)]
+    if not numbers:
+        return None, None, currency
+    if "от" in lowered:
+        return numbers[0], numbers[1] if len(numbers) > 1 else None, currency
+    if "до" in lowered:
+        return (numbers[0], numbers[1], currency) if len(numbers) > 1 else (None, numbers[0], currency)
+    if len(numbers) >= 2:
+        return numbers[0], numbers[1], currency
+    return numbers[0], None, currency
+
+
+def _rabota1000_job_type_label(value: str) -> str | None:
+    if not value:
+        return None
+    mapping = {
+        "1": "Полная занятость",
+        "6": "Удаленная работа",
+    }
+    return mapping.get(value) or value

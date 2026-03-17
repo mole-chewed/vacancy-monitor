@@ -107,6 +107,8 @@ class AppSettings:
     hh_api_base_url: str
     hh_user_agent: str
     hh_api_token: str | None
+    rabota1000_base_url: str
+    rabota1000_user_agent: str
     remotive_api_base_url: str
     remotive_user_agent: str
     remoteok_api_base_url: str
@@ -154,6 +156,10 @@ def load_settings(env_path: str | Path = ".env") -> AppSettings:
         hh_user_agent=_env_get("HH_USER_AGENT", "vacancy-monitor/0.1 (+local-cli)", env_file)
         or "vacancy-monitor/0.1 (+local-cli)",
         hh_api_token=_env_get("HH_API_TOKEN", None, env_file),
+        rabota1000_base_url=_env_get("RABOTA1000_BASE_URL", "https://rabota1000.ru", env_file)
+        or "https://rabota1000.ru",
+        rabota1000_user_agent=_env_get("RABOTA1000_USER_AGENT", "vacancy-monitor/0.1 (+local-cli)", env_file)
+        or "vacancy-monitor/0.1 (+local-cli)",
         remotive_api_base_url=_env_get("REMOTIVE_API_BASE_URL", "https://remotive.com", env_file)
         or "https://remotive.com",
         remotive_user_agent=_env_get("REMOTIVE_USER_AGENT", "vacancy-monitor/0.1 (+local-cli)", env_file)

@@ -54,6 +54,20 @@ def build_parser() -> argparse.ArgumentParser:
     fetch_hh.add_argument("--detailed", action="store_true", help="Fetch per-vacancy detail endpoint")
     fetch_hh.add_argument("--dry-run", action="store_true", help="Print the request params without calling hh.ru")
 
+    fetch_rabota1000 = subparsers.add_parser("fetch-rabota1000", help="Fetch vacancies from rabota1000.ru search")
+    fetch_rabota1000.add_argument("--text", required=True, help="Search text")
+    fetch_rabota1000.add_argument("--pages", type=int, default=1, help="Number of pages to fetch")
+    fetch_rabota1000.add_argument("--area", type=int, default=1, help="rabota1000.ru locationId")
+    fetch_rabota1000.add_argument("--employment", default=None, help="rabota1000.ru jobType filter, for example 6")
+    fetch_rabota1000.add_argument("--experience", default=None, help="rabota1000.ru experience filter id")
+    fetch_rabota1000.add_argument(
+        "--order-by",
+        default="date",
+        help="Sort order: relevance, date/publication_time, salary, or raw rabota1000 sort id",
+    )
+    fetch_rabota1000.add_argument("--only-with-salary", action="store_true", help="Keep only vacancies with salary text")
+    fetch_rabota1000.add_argument("--dry-run", action="store_true", help="Print the configured request without calling rabota1000.ru")
+
     fetch_remoteok = subparsers.add_parser("fetch-remoteok", help="Fetch vacancies from Remote OK public API")
     fetch_remoteok.add_argument("--text", required=True, help="Search text")
     fetch_remoteok.add_argument("--dry-run", action="store_true", help="Print the configured request without calling Remote OK")
@@ -294,6 +308,40 @@ def fetch_habr_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def fetch_rabota1000_command(args: argparse.Namespace) -> int:
+    from vacancy_monitor.models import SearchQuery
+    from vacancy_monitor.sources.rabota1000_api import Rabota1000Client
+
+    settings = load_settings(args.env_file)
+    configure_logging(settings.log_level)
+    profile = load_profile(args.config)
+    query = SearchQuery(
+        source="rabota1000",
+        name="ad_hoc",
+        text=args.text,
+        pages=args.pages,
+        area=args.area,
+        employment=args.employment,
+        experience=args.experience,
+        order_by=args.order_by,
+        only_with_salary=args.only_with_salary,
+    )
+    if args.dry_run:
+        client = Rabota1000Client(base_url=settings.rabota1000_base_url, user_agent=settings.rabota1000_user_agent)
+        print(f"Rabota1000 request plan for {query.name}:")
+        preview_pages = query.pages if not query.fetch_all else 3
+        for page in range(1, max(preview_pages, 1) + 1):
+            print(client.build_search_preview(query, page))
+        return 0
+
+    storage = Storage(Path(args.db_path) if args.db_path else settings.db_path)
+    storage.init_db()
+    adapters = build_adapter_registry(settings)
+    inserted, _, _ = fetch_search_queries(adapters, [query], profile=profile, storage=storage)
+    print(f"Fetched and saved {inserted} vacancies from Rabota1000")
+    return 0
+
+
 def fetch_remoteok_command(args: argparse.Namespace) -> int:
     from vacancy_monitor.models import SearchQuery
 
@@ -436,6 +484,18 @@ def fetch_profile_command(args: argparse.Namespace) -> int:
                     print(f"    {params}")
                 if query.fetch_all:
                     print("    ... fetch_all=true, will continue until hh.ru pages are exhausted")
+            elif query.source == "rabota1000":
+                from vacancy_monitor.sources.rabota1000_api import Rabota1000Client
+
+                client = Rabota1000Client(
+                    base_url=settings.rabota1000_base_url,
+                    user_agent=settings.rabota1000_user_agent,
+                )
+                preview_pages = query.pages if not query.fetch_all else 3
+                for page in range(1, max(preview_pages, 1) + 1):
+                    print(f"    {client.build_search_preview(query, page)}")
+                if query.fetch_all:
+                    print("    ... fetch_all=true, will continue until rabota1000.ru pages are exhausted")
             elif query.source == "remoteok":
                 print(f"    {{'endpoint': '/api', 'query_filter': {query.text!r}}}")
             elif query.source == "remotive":
@@ -829,6 +889,8 @@ def main(argv: list[str] | None = None) -> int:
         return fetch_habr_command(args)
     if args.command == "fetch-hh":
         return fetch_hh_command(args)
+    if args.command == "fetch-rabota1000":
+        return fetch_rabota1000_command(args)
     if args.command == "fetch-remoteok":
         return fetch_remoteok_command(args)
     if args.command == "fetch-remotive":

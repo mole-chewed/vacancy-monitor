@@ -4,7 +4,7 @@ Python CLI for collecting vacancies from several public sources, normalizing the
 
 ## What it does
 
-- imports vacancies from `hh`, `habr`, `remotive`, `remoteok`, `weworkremotely`, or local JSON
+- imports vacancies from `hh`, `habr`, `rabota1000`, `remotive`, `remoteok`, `weworkremotely`, or local JSON
 - stores everything in local SQLite
 - ranks vacancies for Ruby-first and AI-transition searches
 - excludes vacancies you already marked or imported from hh.ru application history
@@ -64,6 +64,7 @@ Provider-specific ad hoc fetch commands are also available:
 
 - `fetch-hh`
 - `fetch-habr`
+- `fetch-rabota1000`
 - `fetch-remotive`
 - `fetch-remoteok`
 - `fetch-weworkremotely`

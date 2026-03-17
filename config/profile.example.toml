@@ -112,6 +112,18 @@ per_page = 25
 pages = 1
 fetch_all = true
 
+[search.rabota1000_ruby_primary]
+enabled = true
+source = "rabota1000"
+priority = 14
+label = "Rabota1000 Ruby Primary"
+text = "Ruby on Rails"
+area = 1
+pages = 1
+fetch_all = true
+schedule = "remote"
+order_by = "publication_time"
+
 [search.remoteok_ruby_primary]
 enabled = true
 source = "remoteok"
