@@ -95,5 +95,89 @@ class StorageTestCase(unittest.TestCase):
             self.assertEqual(rows[0].status, ApplicationStatus.INTERVIEW)
 
 
+    def test_company_title_index_populated_on_import(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
+            storage.init_db()
+
+            storage.import_application_entries(
+                [
+                    UiApplicationEntry(
+                        vacancy_id="ct-001",
+                        url="https://hh.ru/vacancy/ct-001",
+                        title="Senior Ruby Developer",
+                        company="Apex Inc.",
+                        status=ApplicationStatus.APPLIED,
+                    ),
+                ]
+            )
+
+            applied_ct = storage.load_applied_company_titles()
+            self.assertIn(("apex", "senior ruby developer"), applied_ct)
+
+    def test_company_title_index_populated_on_mark(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
+            storage.init_db()
+
+            vacancies = load_vacancies_from_json("data/sample_vacancies.json")
+            storage.upsert_vacancies(vacancies)
+            storage.mark_application(
+                ApplicationRecord(vacancy_id="ruby-rails-002", status=ApplicationStatus.APPLIED, note=None)
+            )
+
+            applied_ct = storage.load_applied_company_titles()
+            self.assertTrue(len(applied_ct) > 0)
+
+    def test_rebuild_company_title_index(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
+            storage.init_db()
+
+            storage.import_application_entries(
+                [
+                    UiApplicationEntry(
+                        vacancy_id="rb-001",
+                        url="https://hh.ru/vacancy/rb-001",
+                        title="Ruby Developer",
+                        company="TestCo",
+                        status=ApplicationStatus.APPLIED,
+                    ),
+                ]
+            )
+
+            # Clear the index, then rebuild
+            with storage.connect() as conn:
+                conn.execute("DELETE FROM company_title_index")
+            self.assertEqual(len(storage.load_applied_company_titles()), 0)
+
+            count = storage.rebuild_company_title_index()
+            self.assertEqual(count, 1)
+            self.assertIn(("testco", "ruby developer"), storage.load_applied_company_titles())
+
+    def test_company_title_dedup_across_providers(self) -> None:
+        """End-to-end: vacancy from provider B is filtered when same company+title applied via provider A."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            storage = Storage(Path(temp_dir) / "vacancy_monitor.db")
+            storage.init_db()
+
+            # Simulate applied on hh.ru
+            storage.import_application_entries(
+                [
+                    UiApplicationEntry(
+                        vacancy_id="hh-apex-001",
+                        url="https://hh.ru/vacancy/hh-apex-001",
+                        title="Senior Ruby Developer",
+                        company="Apex",
+                        status=ApplicationStatus.APPLIED,
+                    ),
+                ]
+            )
+
+            applied_ct = storage.load_applied_company_titles()
+            # The key for "Apex" + "Senior Ruby Developer" should block rabota1000 duplicate
+            self.assertIn(("apex", "senior ruby developer"), applied_ct)
+
+
 if __name__ == "__main__":
     unittest.main()

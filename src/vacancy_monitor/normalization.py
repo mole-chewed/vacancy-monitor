@@ -10,6 +10,11 @@ from vacancy_monitor.models import NormalizedVacancy, SalaryRange, VacancyTrack,
 
 WHITESPACE_RE = re.compile(r"\s+")
 HTML_TAG_RE = re.compile(r"<[^>]+>")
+LEGAL_SUFFIX_RE = re.compile(
+    r"\b(ооо|оао|ао|зао|пао|ип|inc\.?|llc|ltd\.?|corp\.?|corporation|company|co\.?|gmbh|ag|s\.?a\.?|plc)\b",
+    re.IGNORECASE,
+)
+NON_ALNUM_RE = re.compile(r"[^\w\s]", re.UNICODE)
 
 
 def normalize_text(value: str | None) -> str:
@@ -21,6 +26,20 @@ def normalize_text(value: str | None) -> str:
 
 def normalize_for_match(value: str | None) -> str:
     return normalize_text(value).lower()
+
+
+def normalize_company_key(raw: str) -> str:
+    """Normalize company name for cross-provider deduplication."""
+    lowered = normalize_for_match(raw)
+    stripped = LEGAL_SUFFIX_RE.sub("", lowered)
+    cleaned = NON_ALNUM_RE.sub(" ", stripped)
+    return WHITESPACE_RE.sub(" ", cleaned).strip()
+
+
+def normalize_title_key(raw: str) -> str:
+    """Normalize job title for cross-provider deduplication."""
+    lowered = normalize_for_match(raw)
+    return WHITESPACE_RE.sub(" ", lowered).strip()
 
 
 def parse_salary(payload: dict[str, Any]) -> SalaryRange:

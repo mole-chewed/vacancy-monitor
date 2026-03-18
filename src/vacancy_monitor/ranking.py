@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from vacancy_monitor.config import CandidateProfile, vacancy_is_ignored
 from vacancy_monitor.models import ApplicationStatus, RankedVacancy, Vacancy, VacancyAnalysis, VacancyTrack
+from vacancy_monitor.normalization import normalize_company_key, normalize_title_key
 from vacancy_monitor.scoring import analyze_vacancy
 
 
@@ -13,11 +14,16 @@ def build_ranked_vacancies(
     *,
     profile: CandidateProfile,
     statuses: dict[str, ApplicationStatus],
+    applied_company_titles: set[tuple[str, str]] | None = None,
 ) -> list[RankedVacancy]:
     ranked: list[RankedVacancy] = []
     for vacancy in vacancies:
         if vacancy_is_ignored(profile, vacancy):
             continue
+        if applied_company_titles:
+            key = (normalize_company_key(vacancy.company), normalize_title_key(vacancy.title))
+            if key in applied_company_titles:
+                continue
         analysis = analyze_vacancy(vacancy, profile)
         if analysis.track not in {VacancyTrack.RUBY, VacancyTrack.MIXED, VacancyTrack.AI}:
             continue
