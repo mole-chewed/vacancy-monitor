@@ -20,6 +20,7 @@ from vacancy_monitor.models import (
     VacancyTrack,
     WorkFormat,
 )
+from vacancy_monitor.normalization import normalize_company_key, normalize_title_key
 
 
 class Storage:
@@ -108,6 +109,18 @@ class Storage:
                     FOREIGN KEY(run_id) REFERENCES ranking_runs(id),
                     FOREIGN KEY(vacancy_id) REFERENCES vacancies(external_id)
                 );
+
+                CREATE TABLE IF NOT EXISTS company_title_index (
+                    company_key TEXT NOT NULL,
+                    title_key TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    external_id TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'applied',
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (company_key, title_key, source)
+                );
+                CREATE INDEX IF NOT EXISTS idx_cti_lookup
+                    ON company_title_index (company_key, title_key);
                 """
             )
 
@@ -263,6 +276,13 @@ class Storage:
                     for entry in entries
                 ],
             )
+
+        for entry in entries:
+            if entry.company and entry.title:
+                ck = normalize_company_key(entry.company)
+                tk = normalize_title_key(entry.title)
+                self.upsert_company_title_entry(ck, tk, "hh", entry.vacancy_id, entry.status.value)
+
         return len(entries)
 
     def sync_application_entries(self, entries: list[UiApplicationEntry]) -> int:
@@ -314,6 +334,14 @@ class Storage:
                 """,
                 (record.vacancy_id, record.status.value, record.note, record.updated_at),
             )
+
+        vacancy = self.get_vacancy(record.vacancy_id)
+        if vacancy and vacancy.company and vacancy.title:
+            from vacancy_monitor.config import source_family
+
+            ck = normalize_company_key(vacancy.company)
+            tk = normalize_title_key(vacancy.title)
+            self.upsert_company_title_entry(ck, tk, source_family(vacancy.source), record.vacancy_id, record.status.value)
 
     def list_application_history(self) -> list[ApplicationRecord]:
         with self.connect() as conn:
@@ -395,6 +423,59 @@ class Storage:
         if row is None:
             return None
         return self._row_to_vacancy(row)
+
+    def upsert_company_title_entry(
+        self,
+        company_key: str,
+        title_key: str,
+        source: str,
+        external_id: str,
+        status: str = "applied",
+    ) -> None:
+        if not company_key or not title_key:
+            return
+        from vacancy_monitor.models import utc_now_iso
+
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO company_title_index (company_key, title_key, source, external_id, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(company_key, title_key, source) DO UPDATE SET
+                    external_id=excluded.external_id,
+                    status=excluded.status
+                """,
+                (company_key, title_key, source, external_id, status, utc_now_iso()),
+            )
+
+    def load_applied_company_titles(self) -> set[tuple[str, str]]:
+        with self.connect() as conn:
+            rows = conn.execute("SELECT DISTINCT company_key, title_key FROM company_title_index").fetchall()
+        return {(row["company_key"], row["title_key"]) for row in rows}
+
+    def rebuild_company_title_index(self) -> int:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM company_title_index")
+            rows = conn.execute(
+                """
+                SELECT v.external_id, v.source, v.title, v.company, a.status
+                FROM vacancies v
+                JOIN application_history a ON a.vacancy_id = v.external_id
+                """
+            ).fetchall()
+
+        from vacancy_monitor.config import source_family
+
+        count = 0
+        for row in rows:
+            ck = normalize_company_key(row["company"])
+            tk = normalize_title_key(row["title"])
+            if ck and tk:
+                self.upsert_company_title_entry(
+                    ck, tk, source_family(row["source"]), row["external_id"], row["status"],
+                )
+                count += 1
+        return count
 
     def _analysis_row(self, run_id: int, analysis: VacancyAnalysis) -> tuple[object, ...]:
         return (

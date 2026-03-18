@@ -567,6 +567,7 @@ def _ranked_vacancies(
 ) -> list[RankedVacancy]:
     profile = load_profile(config_path)
     statuses = storage.get_application_statuses()
+    applied_ct = storage.load_applied_company_titles()
     vacancies = storage.list_vacancies(exclude_statuses=excluded)
     vacancies = _filter_archived_vacancies(vacancies)
     vacancies = _filter_vacancies_by_source(vacancies, source_name)
@@ -574,7 +575,7 @@ def _ranked_vacancies(
         vacancies = [vacancy for vacancy in vacancies if not vacancy_is_ignored(profile, vacancy)]
     if profile.preferences.remote_only:
         vacancies = [vacancy for vacancy in vacancies if vacancy.work_format == WorkFormat.REMOTE]
-    return build_ranked_vacancies(vacancies, profile=profile, statuses=statuses)
+    return build_ranked_vacancies(vacancies, profile=profile, statuses=statuses, applied_company_titles=applied_ct)
 
 
 def _hydrate_ranked_vacancies(
