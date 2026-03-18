@@ -901,6 +901,14 @@ def apply_hh_command(args: argparse.Namespace) -> int:
     if not vacancy:
         print(json_mod.dumps({"vacancy_id": args.vacancy_id, "success": False, "error": "Vacancy not found"}))
         return 1
+    if source_family(vacancy.source) != "hh":
+        print(json_mod.dumps({
+            "vacancy_id": args.vacancy_id,
+            "success": False,
+            "error": f"apply-hh only supports hh.ru vacancies (source={vacancy.source!r}). "
+                     "Vacancies from other providers are shown in the report only.",
+        }, ensure_ascii=False))
+        return 1
     if not vacancy.url:
         print(json_mod.dumps({"vacancy_id": args.vacancy_id, "success": False, "error": "Vacancy has no URL"}))
         return 1
@@ -975,6 +983,15 @@ def apply_batch_command(args: argparse.Namespace) -> int:
         if not vacancy or not vacancy.url:
             results.append({"vacancy_id": vacancy_id, "success": False, "error": "Vacancy not found or no URL"})
             failed += 1
+            continue
+
+        if source_family(vacancy.source) != "hh":
+            results.append({
+                "vacancy_id": vacancy_id,
+                "success": False,
+                "skipped": True,
+                "error": f"Skipped: only hh.ru vacancies can be applied automatically (source={vacancy.source!r})",
+            })
             continue
 
         if i > 0 and args.delay > 0:
