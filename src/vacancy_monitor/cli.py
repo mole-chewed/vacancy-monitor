@@ -193,7 +193,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     report = subparsers.add_parser("report", help="Generate a markdown application report from ranked vacancies")
-    report.add_argument("--output", default=None, help="Markdown report output path")
+    report.add_argument("--output", default=None, help="Report output path")
+    report.add_argument(
+        "--format",
+        default="openai",
+        choices=["openai", "json"],
+        help="Output format: openai (default) for LLM-generated markdown, json for machine-readable output",
+    )
     report.add_argument(
         "--cv-path",
         default=None,
@@ -214,6 +220,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Comma-separated application statuses to exclude from ranking",
     )
     report.add_argument("--source", default=None, help="Only report on one source family, for example hh")
+
+    subparsers.add_parser("rebuild-index", help="Rebuild company+title cross-provider deduplication index")
 
     subparsers.add_parser("history", help="Show application history")
     subparsers.add_parser("show-latest", help="Show latest saved ranking from SQLite")
@@ -818,6 +826,26 @@ def report_command(args: argparse.Namespace) -> int:
 
     output_path = Path(resolved_args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if resolved_args.format == "json":
+        return _report_json(ranked, profile, output_path)
+
+    return _report_openai(ranked, profile, settings, resolved_args, output_path)
+
+
+def _report_json(ranked: list[RankedVacancy], profile, output_path: Path) -> int:
+    import json
+
+    from vacancy_monitor.agent_output import serialize_ranked_for_agent
+
+    data = serialize_ranked_for_agent(ranked, profile.name)
+    output_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"Saved JSON report to {output_path}")
+    print(f"Vacancies: {len(ranked)}")
+    return 0
+
+
+def _report_openai(ranked, profile, settings, resolved_args, output_path: Path) -> int:
     try:
         cv_text = extract_cv_text(resolved_args.cv_path)
     except CvExtractionError as exc:
@@ -844,6 +872,13 @@ def report_command(args: argparse.Namespace) -> int:
     print(f"Vacancies analyzed: {len(ranked)}")
     print(f"Remote-only filter: {profile.preferences.remote_only}")
     print(f"Model: {settings.openai_report_model}")
+    return 0
+
+
+def rebuild_index_command(args: argparse.Namespace) -> int:
+    storage = resolve_storage(args)
+    count = storage.rebuild_company_title_index()
+    print(f"Rebuilt company+title index: {count} entries")
     return 0
 
 
@@ -916,6 +951,8 @@ def main(argv: list[str] | None = None) -> int:
         return export_my_applications_command(args)
     if args.command == "report":
         return report_command(args)
+    if args.command == "rebuild-index":
+        return rebuild_index_command(args)
     if args.command == "history":
         return history_command(args)
     if args.command == "show-latest":
