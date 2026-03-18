@@ -223,6 +223,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("rebuild-index", help="Rebuild company+title cross-provider deduplication index")
 
+    apply_hh = subparsers.add_parser("apply-hh", help="Apply to an hh.ru vacancy via Playwright")
+    apply_hh.add_argument("--vacancy-id", required=True, help="Vacancy external id")
+    apply_hh.add_argument("--cover-letter", default=None, help="Cover letter text")
+    apply_hh.add_argument("--storage-state", default=None, help="Playwright storage state JSON path")
+    apply_hh.add_argument("--headless", action="store_true", help="Run browser headlessly")
+    apply_hh.add_argument("--timeout", type=int, default=30, help="Timeout in seconds for page operations")
+    apply_hh.add_argument("--screenshot-dir", default="data/screenshots", help="Directory to save screenshots")
+
+    apply_batch = subparsers.add_parser("apply-batch", help="Apply to multiple vacancies from a JSON file")
+    apply_batch.add_argument("--input", required=True, help="Path to JSON file with vacancy list")
+    apply_batch.add_argument("--storage-state", default=None, help="Playwright storage state JSON path")
+    apply_batch.add_argument("--headless", action="store_true", help="Run browser headlessly")
+    apply_batch.add_argument("--timeout", type=int, default=30, help="Timeout in seconds per vacancy")
+    apply_batch.add_argument("--delay", type=int, default=5, help="Delay in seconds between applications")
+    apply_batch.add_argument("--screenshot-dir", default="data/screenshots", help="Directory to save screenshots")
+
     subparsers.add_parser("history", help="Show application history")
     subparsers.add_parser("show-latest", help="Show latest saved ranking from SQLite")
 
@@ -875,6 +891,131 @@ def _report_openai(ranked, profile, settings, resolved_args, output_path: Path) 
     return 0
 
 
+def apply_hh_command(args: argparse.Namespace) -> int:
+    import json as json_mod
+
+    from vacancy_monitor.ui.hh_applicant import PlaywrightUnavailableError, apply_to_vacancy
+
+    storage = resolve_storage(args)
+    vacancy = storage.get_vacancy(args.vacancy_id)
+    if not vacancy:
+        print(json_mod.dumps({"vacancy_id": args.vacancy_id, "success": False, "error": "Vacancy not found"}))
+        return 1
+    if not vacancy.url:
+        print(json_mod.dumps({"vacancy_id": args.vacancy_id, "success": False, "error": "Vacancy has no URL"}))
+        return 1
+
+    profile = load_profile(args.config)
+    resolved_storage_state = args.storage_state or profile.defaults.export_my_applications.storage_state_path
+
+    try:
+        result = apply_to_vacancy(
+            vacancy.url,
+            args.vacancy_id,
+            cover_letter=args.cover_letter,
+            storage_state_path=resolved_storage_state,
+            headless=args.headless,
+            timeout_ms=args.timeout * 1000,
+            screenshot_dir=args.screenshot_dir,
+        )
+    except PlaywrightUnavailableError as exc:
+        print(json_mod.dumps({"vacancy_id": args.vacancy_id, "success": False, "error": str(exc)}))
+        return 1
+
+    if result.success:
+        storage.mark_application(
+            ApplicationRecord(vacancy_id=args.vacancy_id, status=ApplicationStatus.APPLIED, note=None)
+        )
+
+    print(json_mod.dumps({
+        "vacancy_id": result.vacancy_id,
+        "success": result.success,
+        "already_applied": result.already_applied,
+        "error": result.error,
+        "screenshot": result.screenshot_path,
+    }, ensure_ascii=False))
+    return 0 if result.success or result.already_applied else 1
+
+
+def apply_batch_command(args: argparse.Namespace) -> int:
+    import json as json_mod
+    import time
+
+    from vacancy_monitor.ui.hh_applicant import PlaywrightUnavailableError, apply_to_vacancy
+
+    storage = resolve_storage(args)
+    profile = load_profile(args.config)
+    resolved_storage_state = args.storage_state or profile.defaults.export_my_applications.storage_state_path
+
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"Input file not found: {input_path}", file=sys.stderr)
+        return 1
+
+    entries = json_mod.loads(input_path.read_text(encoding="utf-8"))
+    if not isinstance(entries, list):
+        print("Input JSON must be a list of objects", file=sys.stderr)
+        return 1
+
+    applied = 0
+    already_applied = 0
+    failed = 0
+    results = []
+
+    for i, entry in enumerate(entries):
+        vacancy_id = entry.get("vacancy_id") or entry.get("external_id")
+        cover_letter = entry.get("cover_letter")
+
+        if not vacancy_id:
+            results.append({"vacancy_id": None, "success": False, "error": "Missing vacancy_id"})
+            failed += 1
+            continue
+
+        vacancy = storage.get_vacancy(vacancy_id)
+        if not vacancy or not vacancy.url:
+            results.append({"vacancy_id": vacancy_id, "success": False, "error": "Vacancy not found or no URL"})
+            failed += 1
+            continue
+
+        if i > 0 and args.delay > 0:
+            time.sleep(args.delay)
+
+        try:
+            result = apply_to_vacancy(
+                vacancy.url,
+                vacancy_id,
+                cover_letter=cover_letter,
+                storage_state_path=resolved_storage_state,
+                headless=args.headless,
+                timeout_ms=args.timeout * 1000,
+                screenshot_dir=args.screenshot_dir,
+            )
+        except PlaywrightUnavailableError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+        if result.success:
+            storage.mark_application(
+                ApplicationRecord(vacancy_id=vacancy_id, status=ApplicationStatus.APPLIED, note=None)
+            )
+            applied += 1
+        elif result.already_applied:
+            already_applied += 1
+        else:
+            failed += 1
+
+        results.append({
+            "vacancy_id": result.vacancy_id,
+            "success": result.success,
+            "already_applied": result.already_applied,
+            "error": result.error,
+        })
+
+    summary = {"applied": applied, "already_applied": already_applied, "failed": failed, "details": results}
+    print(json_mod.dumps(summary, ensure_ascii=False, indent=2))
+    return 0
+
+
 def rebuild_index_command(args: argparse.Namespace) -> int:
     storage = resolve_storage(args)
     count = storage.rebuild_company_title_index()
@@ -953,6 +1094,10 @@ def main(argv: list[str] | None = None) -> int:
         return report_command(args)
     if args.command == "rebuild-index":
         return rebuild_index_command(args)
+    if args.command == "apply-hh":
+        return apply_hh_command(args)
+    if args.command == "apply-batch":
+        return apply_batch_command(args)
     if args.command == "history":
         return history_command(args)
     if args.command == "show-latest":
